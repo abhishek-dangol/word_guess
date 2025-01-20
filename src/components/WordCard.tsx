@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
-import type { WordCard as WordCardType } from "../data/wordList";
+import { View, Text, StyleSheet } from "react-native";
+import type { CardData } from "../types/game";
 
 interface WordCardProps {
-  wordCard: WordCardType;
+  wordCard: CardData;
 }
 
 /**
@@ -11,23 +11,16 @@ interface WordCardProps {
  * @returns {JSX.Element} Rendered component
  */
 export function WordCard({ wordCard }: WordCardProps) {
-  // Get screen dimensions for responsive sizing
-  const { width } = useWindowDimensions();
-  const cardWidth = width * 0.85; // Card takes up 85% of screen width
-
+  console.log("Rendering WordCard with:", wordCard);
   return (
-    <View style={[styles.container, { width: cardWidth }]}>
-      {/* Main word section */}
-      <View style={styles.mainWordContainer}>
-        <Text style={styles.mainWord}>{wordCard.mainWord}</Text>
-      </View>
-
-      {/* Taboo words section */}
-      <View style={styles.tabooWordsContainer}>
-        {wordCard.tabooWords.map((word, index) => (
-          <View key={index} style={styles.tabooWordItem}>
-            <Text style={styles.tabooWord}>{word}</Text>
-          </View>
+    <View style={styles.container}>
+      <Text style={styles.category}>{wordCard.category}</Text>
+      <Text style={styles.mainWord}>{wordCard.tabooword}</Text>
+      <View style={styles.hintWordsContainer}>
+        {wordCard.hintwords.map((word, index) => (
+          <Text key={index} style={styles.hintWord}>
+            {word}
+          </Text>
         ))}
       </View>
     </View>
@@ -38,45 +31,38 @@ export function WordCard({ wordCard }: WordCardProps) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "white",
-    borderRadius: 16,
-    padding: 24,
+    padding: 20,
+    borderRadius: 12,
+    alignItems: "center",
+    width: "100%",
+    maxWidth: 300,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    minHeight: 300, // Ensure minimum height for better appearance
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  mainWordContainer: {
-    alignItems: "center",
-    paddingVertical: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+  category: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 8,
   },
   mainWord: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "bold",
     color: "#2C3E50",
-    letterSpacing: 0.5,
+    marginBottom: 16,
   },
-  tabooWordsContainer: {
-    marginTop: 24,
-    gap: 12,
+  hintWordsContainer: {
+    width: "100%",
   },
-  tabooWordItem: {
-    backgroundColor: "#F5F6FA",
-    padding: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-  },
-  tabooWord: {
-    fontSize: 20,
-    color: "#E74C3C",
+  hintWord: {
+    fontSize: 18,
+    color: "#34495E",
+    paddingVertical: 4,
     textAlign: "center",
-    fontWeight: "500",
   },
 });

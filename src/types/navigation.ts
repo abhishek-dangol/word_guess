@@ -10,19 +10,16 @@
  * when navigating between screens using useNavigation() and navigation.navigate()
  */
 
-import type { TeamSettings } from "./game";
+import type { TeamSettings, GameSettings } from "./game";
 
 export type RootStackParamList = {
   Home: undefined;
   TeamSetupScreen: undefined;
+  CategorySetup: {
+    teamSettings: TeamSettings;
+  };
   Game: {
-    teamSettings: {
-      team1Name: string;
-      team2Name: string;
-      team1Players: string[];
-      team2Players: string[];
-      playersPerTeam: number;
-    };
+    gameSettings: GameSettings;
   };
   Leaderboard: undefined;
 };

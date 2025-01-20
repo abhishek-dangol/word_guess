@@ -5,3 +5,15 @@ export interface TeamSettings {
   team1Players: string[];
   team2Players: string[];
 }
+
+export interface CardData {
+  cardnumber: number;
+  tabooword: string;
+  hintwords: string[];
+  category: string;
+}
+
+export interface GameSettings {
+  teamSettings: TeamSettings;
+  selectedCategories: string[];
+}

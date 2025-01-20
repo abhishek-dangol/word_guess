@@ -80,7 +80,7 @@ const TeamSetupScreen: React.FC<TeamSetupScreenProps> = ({ navigation }) => {
       return;
     }
 
-    navigation.navigate("Game", {
+    navigation.navigate("CategorySetup", {
       teamSettings: {
         ...teamSettings,
         team1Players,

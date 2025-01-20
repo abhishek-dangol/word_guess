@@ -1,8 +1,8 @@
 import { View, StyleSheet, Pressable, Text, Alert, Modal } from "react-native";
 import { WordCard } from "../components/WordCard";
-import { getRandomWordCard } from "../data/wordList";
+import { getRandomCard } from "../lib/cardService";
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { WordCard as WordCardType } from "../data/wordList";
+import type { CardData } from "../types/game";
 import { supabase } from "../lib/supabase";
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -31,12 +31,11 @@ export function GameScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, "Game">>();
-  const { teamSettings } = route.params;
+  const { gameSettings } = route.params;
+  const { teamSettings, selectedCategories } = gameSettings;
 
   // State management for word card, timer, and scoring
-  const [currentWordCard, setCurrentWordCard] = useState<WordCardType | null>(
-    null,
-  );
+  const [currentWordCard, setCurrentWordCard] = useState<CardData | null>(null);
   const [timeLeft, setTimeLeft] = useState(INITIAL_TIME);
   const [isTimerActive, setIsTimerActive] = useState(true);
   const [score, setScore] = useState(0);
@@ -89,6 +88,23 @@ export function GameScreen() {
     return currentTeam === 1 ? 2 : 1;
   }, []);
 
+  // Function to fetch new card
+  const fetchNewCard = useCallback(async () => {
+    console.log("Fetching new card...");
+    const card = await getRandomCard(selectedCategories);
+    console.log("Received card:", card);
+    if (card) {
+      setCurrentWordCard(card);
+    } else {
+      console.error("No card received");
+    }
+  }, [selectedCategories]);
+
+  // Add useEffect to fetch initial card
+  useEffect(() => {
+    fetchNewCard();
+  }, [fetchNewCard]);
+
   // Initialize game state function
   const initializeGame = useCallback(() => {
     if (hasInitialized.current) return; // Prevent re-initialization
@@ -103,7 +119,7 @@ export function GameScreen() {
 
     setLastTeamNumber(initialTeam);
     setCurrentTurn(firstTurn);
-    setCurrentWordCard(getRandomWordCard());
+    setCurrentWordCard(null);
     setTimeLeft(INITIAL_TIME);
     setIsTimerActive(false);
     setScore(0);
@@ -258,18 +274,18 @@ export function GameScreen() {
   }, [timeLeft, isTimerActive, handleEndTurn]);
 
   // Handler for correct guess
-  const handleCorrect = () => {
+  const handleCorrect = async () => {
     if (isTimerActive) {
       setScore((prev) => prev + 1);
-      setCurrentWordCard(getRandomWordCard());
+      await fetchNewCard();
     }
   };
 
   // Handler for skipping word
-  const handleSkip = () => {
+  const handleSkip = async () => {
     if (isTimerActive && skips < MAX_SKIPS) {
       setSkips((prev) => prev + 1);
-      setCurrentWordCard(getRandomWordCard());
+      await fetchNewCard();
     }
   };
 
@@ -307,7 +323,7 @@ export function GameScreen() {
   };
 
   // Start next turn without calling handleEndTurn directly
-  const handleStartNextTurn = useCallback(() => {
+  const handleStartNextTurn = useCallback(async () => {
     if (!nextTurn) return;
 
     setCurrentTurn(nextTurn);
@@ -315,10 +331,10 @@ export function GameScreen() {
     setIsNextTurnModalVisible(false);
     setTimeLeft(INITIAL_TIME);
     setIsTimerActive(true);
-    setCurrentWordCard(getRandomWordCard());
+    await fetchNewCard();
     setScore(0);
     setSkips(0);
-  }, [nextTurn]);
+  }, [nextTurn, fetchNewCard]);
 
   // Handler for starting first turn
   const handleStartFirstTurn = useCallback(() => {

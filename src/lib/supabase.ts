@@ -6,6 +6,9 @@ import Constants from "expo-constants";
 const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl as string;
 const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey as string;
 
+console.log("Supabase URL:", supabaseUrl);
+console.log("Supabase Key exists:", !!supabaseAnonKey);
+
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
     "Missing Supabase configuration. Please check your environment variables.",
@@ -14,6 +17,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Initialize the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Test the connection immediately
+supabase
+  .from("carddata")
+  .select("count")
+  .then(({ data, error }) => {
+    if (error) {
+      console.error("Supabase connection test failed:", error);
+    } else {
+      console.log("Supabase connection test successful:", data);
+    }
+  });
 
 // Type definition for the scores table
 export interface Score {
