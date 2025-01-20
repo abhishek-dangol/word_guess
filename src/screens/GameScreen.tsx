@@ -1,4 +1,4 @@
-import { View, StyleSheet, Pressable, Text, Alert, Modal, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Text, Alert, Modal, Animated, Vibration } from 'react-native';
 import { WordCard } from '../components/WordCard';
 import { getRandomCard } from '../lib/cardService';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -331,7 +331,7 @@ export function GameScreen() {
           setTimeout(() => {
             setIsTimeUpModalVisible(false);
             handleEndTurn();
-          }, 2000);
+          }, 5000);
 
           return 0;
         }
@@ -354,6 +354,7 @@ export function GameScreen() {
     if (isTimerActive && !isProcessingRef.current) {
       try {
         isProcessingRef.current = true;
+        Vibration.vibrate(50); // Short vibration for 50ms
         setScore((prev) => prev + 1);
         await fetchNewCard();
       } finally {
@@ -362,11 +363,12 @@ export function GameScreen() {
     }
   };
 
-  // Update the handleSkip function similarly
+  // Update the handleSkip function
   const handleSkip = async () => {
     if (isTimerActive && skips < MAX_SKIPS && !isProcessingRef.current) {
       try {
         isProcessingRef.current = true;
+        Vibration.vibrate(100); // Slightly longer vibration for 100ms
         setSkips((prev) => prev + 1);
         await fetchNewCard();
       } finally {
@@ -549,7 +551,7 @@ export function GameScreen() {
               {currentTurn && (
                 <>
                   <Text style={styles.teamName}>Team: {currentTurn.teamName}</Text>
-                  <Text style={styles.playerName}>
+                  <Text style={styles.teamName}>
                     Player {currentTurn.playerIndex + 1}: {currentTurn.playerName}
                   </Text>
                 </>
@@ -568,14 +570,14 @@ export function GameScreen() {
               <Text style={styles.modalTitle}>Next Turn</Text>
               {nextTurn && (
                 <>
-                  <Text style={styles.teamName}>{nextTurn.teamName}</Text>
-                  <Text style={styles.playerName}>
+                  <Text style={styles.teamName}>Team: {nextTurn.teamName}</Text>
+                  <Text style={styles.teamName}>
                     Player {nextTurn.playerIndex + 1}: {nextTurn.playerName}
                   </Text>
                 </>
               )}
               <Pressable style={[styles.button, styles.startButton]} onPress={handleStartNextTurn}>
-                <Text style={styles.buttonText}>Start Turn</Text>
+                <Text style={styles.buttonText}>Start Game</Text>
               </Pressable>
             </View>
           </View>
