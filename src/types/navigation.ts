@@ -10,7 +10,7 @@
  * when navigating between screens using useNavigation() and navigation.navigate()
  */
 
-import type { TeamSettings, GameSettings } from "./game";
+import type { TeamSettings, GameSettings } from './game';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -22,6 +22,9 @@ export type RootStackParamList = {
     gameSettings: GameSettings;
   };
   Leaderboard: undefined;
+  SetSetupScreen: {
+    gameSettings: { teamSettings: TeamSettings; selectedCategories: string[] };
+  };
 };
 
 declare global {
