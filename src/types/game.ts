@@ -11,6 +11,7 @@ export interface CardData {
   tabooword: string;
   hintwords: string[];
   category: string;
+  set: string;
 }
 
 export interface GameSettings {

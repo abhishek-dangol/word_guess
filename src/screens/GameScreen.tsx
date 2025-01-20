@@ -1,14 +1,14 @@
-import { View, StyleSheet, Pressable, Text, Alert, Modal } from "react-native";
-import { WordCard } from "../components/WordCard";
-import { getRandomCard } from "../lib/cardService";
-import { useState, useEffect, useCallback, useRef } from "react";
-import type { CardData } from "../types/game";
-import { supabase } from "../lib/supabase";
-import { AntDesign } from "@expo/vector-icons";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../types/navigation";
-import { BlurView } from "expo-blur";
+import { View, StyleSheet, Pressable, Text, Alert, Modal } from 'react-native';
+import { WordCard } from '../components/WordCard';
+import { getRandomCard } from '../lib/cardService';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { CardData } from '../types/game';
+import { supabase } from '../lib/supabase';
+import { AntDesign } from '@expo/vector-icons';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigation';
+import { BlurView } from 'expo-blur';
 
 const INITIAL_TIME = 10; // Initial timer value in seconds
 const MAX_SKIPS = 3; // Maximum number of skips allowed per round
@@ -28,9 +28,8 @@ interface AvailablePlayers {
 }
 
 export function GameScreen() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<RouteProp<RootStackParamList, "Game">>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
   const { gameSettings } = route.params;
   const { teamSettings, selectedCategories } = gameSettings;
 
@@ -54,8 +53,7 @@ export function GameScreen() {
   const [nextTurn, setNextTurn] = useState<PlayerTurn | null>(null);
 
   // Add new state for initial modal
-  const [isInitialTurnModalVisible, setIsInitialTurnModalVisible] =
-    useState(true);
+  const [isInitialTurnModalVisible, setIsInitialTurnModalVisible] = useState(true);
 
   // Add state to track last team
   const [lastTeamNumber, setLastTeamNumber] = useState<1 | 2 | null>(null);
@@ -80,8 +78,7 @@ export function GameScreen() {
   const [turnCount, setTurnCount] = useState(0);
 
   // Calculate the total number of players
-  const totalPlayers =
-    teamSettings.team1Players.length + teamSettings.team2Players.length;
+  const totalPlayers = teamSettings.team1Players.length + teamSettings.team2Players.length;
 
   // Add this helper function
   const getNextTeamNumber = useCallback((currentTeam: 1 | 2 | null): 1 | 2 => {
@@ -90,13 +87,46 @@ export function GameScreen() {
 
   // Function to fetch new card
   const fetchNewCard = useCallback(async () => {
-    console.log("Fetching new card...");
-    const card = await getRandomCard(selectedCategories);
-    console.log("Received card:", card);
-    if (card) {
-      setCurrentWordCard(card);
-    } else {
-      console.error("No card received");
+    console.log('Fetching new card...');
+    try {
+      // First get the count of matching cards
+      const { count } = await supabase
+        .from('carddata')
+        .select('*', { count: 'exact', head: true })
+        .in('category', selectedCategories);
+
+      if (!count) {
+        console.error('No cards found');
+        return;
+      }
+
+      // Get a random offset
+      const randomOffset = Math.floor(Math.random() * count);
+
+      // Fetch one random card using the offset
+      const { data, error } = await supabase
+        .from('carddata')
+        .select('cardnumber, tabooword, hintwords, category, set')
+        .in('category', selectedCategories)
+        .range(randomOffset, randomOffset)
+        .limit(1)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const processedCard = {
+          cardnumber: data.cardnumber,
+          tabooword: data.tabooword,
+          hintwords: data.hintwords,
+          category: data.category,
+          set: data.set,
+        };
+        console.log('Processed card:', processedCard);
+        setCurrentWordCard(processedCard);
+      }
+    } catch (error) {
+      console.error('Error fetching card:', error);
     }
   }, [selectedCategories]);
 
@@ -142,8 +172,7 @@ export function GameScreen() {
 
       if (teamAvailable.length === 0) return null;
 
-      const playerIndex =
-        teamAvailable[Math.floor(Math.random() * teamAvailable.length)];
+      const playerIndex = teamAvailable[Math.floor(Math.random() * teamAvailable.length)];
 
       return {
         teamNumber,
@@ -157,14 +186,8 @@ export function GameScreen() {
 
   // Function to calculate the winner
   const calculateWinner = useCallback(() => {
-    const team1Total = playerScores.team1.reduce(
-      (acc, score) => acc + score,
-      0,
-    );
-    const team2Total = playerScores.team2.reduce(
-      (acc, score) => acc + score,
-      0,
-    );
+    const team1Total = playerScores.team1.reduce((acc, score) => acc + score, 0);
+    const team2Total = playerScores.team2.reduce((acc, score) => acc + score, 0);
 
     if (team1Total > team2Total) {
       setWinningTeam(teamSettings.team1Name);
@@ -181,8 +204,7 @@ export function GameScreen() {
 
     // Update player score and handle end of game in a single state update
     setPlayerScores((prev) => {
-      const teamKey =
-        `team${currentTurn.teamNumber}` as keyof typeof playerScores;
+      const teamKey = `team${currentTurn.teamNumber}` as keyof typeof playerScores;
       const newScores = { ...prev };
       newScores[teamKey] = [...prev[teamKey]];
       newScores[teamKey][currentTurn.playerIndex] += score;
@@ -211,10 +233,8 @@ export function GameScreen() {
     // Mark current player as unavailable
     setAvailablePlayers((prev) => ({
       ...prev,
-      [`team${currentTurn.teamNumber}`]: prev[
-        `team${currentTurn.teamNumber}`
-      ].map((available: boolean, index) =>
-        index === currentTurn.playerIndex ? false : available,
+      [`team${currentTurn.teamNumber}`]: prev[`team${currentTurn.teamNumber}`].map(
+        (available: boolean, index) => (index === currentTurn.playerIndex ? false : available),
       ),
     }));
 
@@ -299,7 +319,23 @@ export function GameScreen() {
     try {
       setIsSaving(true);
 
-      const { error } = await supabase.from("scores").insert([
+      const { data, error } = await supabase
+        .from('carddata')
+        .select('cardnumber, tabooword, hintwords, category, set')
+        .in('category', gameSettings.selectedCategories);
+
+      if (error) throw error;
+
+      // Make sure to include 'set' when processing the card
+      const processedCards = data.map((card) => ({
+        cardnumber: card.cardnumber,
+        tabooword: card.tabooword,
+        hintwords: card.hintwords,
+        category: card.category,
+        set: card.set,
+      }));
+
+      const { error: supabaseError } = await supabase.from('scores').insert([
         {
           score,
           skips,
@@ -307,16 +343,14 @@ export function GameScreen() {
         },
       ]);
 
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
 
-      Alert.alert("Success", "Your score has been saved!", [
-        { text: "OK", onPress: handleEndTurn },
+      Alert.alert('Success', 'Your score has been saved!', [
+        { text: 'OK', onPress: handleEndTurn },
       ]);
     } catch (error) {
-      Alert.alert("Error", "Failed to save score. Please try again.", [
-        { text: "OK" },
-      ]);
-      console.error("Error saving score:", error);
+      Alert.alert('Error', 'Failed to save score. Please try again.', [{ text: 'OK' }]);
+      console.error('Error saving score:', error);
     } finally {
       setIsSaving(false);
     }
@@ -345,10 +379,7 @@ export function GameScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable
-          style={styles.backButton}
-          onPress={() => navigation.navigate("Home")}
-        >
+        <Pressable style={styles.backButton} onPress={() => navigation.navigate('Home')}>
           <AntDesign name="arrowleft" size={24} color="#2C3E50" />
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
@@ -357,8 +388,7 @@ export function GameScreen() {
       <View
         style={[
           styles.content,
-          (isInitialTurnModalVisible || isNextTurnModalVisible) &&
-            styles.hidden,
+          (isInitialTurnModalVisible || isNextTurnModalVisible) && styles.hidden,
         ]}
       >
         {/* Current Team and Player Display */}
@@ -379,12 +409,7 @@ export function GameScreen() {
           </View>
           <View style={styles.scoreItem}>
             <Text style={styles.scoreLabel}>Skips Left</Text>
-            <Text
-              style={[
-                styles.scoreValue,
-                remainingSkips === 0 && styles.noSkipsLeft,
-              ]}
-            >
+            <Text style={[styles.scoreValue, remainingSkips === 0 && styles.noSkipsLeft]}>
               {remainingSkips}
             </Text>
           </View>
@@ -392,9 +417,7 @@ export function GameScreen() {
 
         {/* Timer display */}
         <View style={styles.timerContainer}>
-          <Text style={[styles.timer, timeLeft <= 3 && styles.timerWarning]}>
-            {timeLeft}s
-          </Text>
+          <Text style={[styles.timer, timeLeft <= 3 && styles.timerWarning]}>{timeLeft}s</Text>
         </View>
 
         {/* Word card */}
@@ -421,14 +444,13 @@ export function GameScreen() {
                 style={[
                   styles.button,
                   styles.skipButton,
-                  (!isTimerActive || remainingSkips === 0) &&
-                    styles.buttonDisabled,
+                  (!isTimerActive || remainingSkips === 0) && styles.buttonDisabled,
                 ]}
                 onPress={handleSkip}
                 disabled={!isTimerActive || remainingSkips === 0}
               >
                 <Text style={styles.buttonText}>
-                  Skip {remainingSkips > 0 ? `(${remainingSkips})` : ""}
+                  Skip {remainingSkips > 0 ? `(${remainingSkips})` : ''}
                 </Text>
               </Pressable>
             </View>
@@ -436,23 +458,14 @@ export function GameScreen() {
             // Save score and Reset buttons when game is over
             <>
               <Pressable
-                style={[
-                  styles.button,
-                  styles.saveButton,
-                  isSaving && styles.buttonDisabled,
-                ]}
+                style={[styles.button, styles.saveButton, isSaving && styles.buttonDisabled]}
                 onPress={handleSaveScore}
                 disabled={isSaving}
               >
-                <Text style={styles.buttonText}>
-                  {isSaving ? "Saving..." : "Save Score"}
-                </Text>
+                <Text style={styles.buttonText}>{isSaving ? 'Saving...' : 'Save Score'}</Text>
               </Pressable>
 
-              <Pressable
-                style={[styles.button, styles.resetButton]}
-                onPress={handleEndTurn}
-              >
+              <Pressable style={[styles.button, styles.resetButton]} onPress={handleEndTurn}>
                 <Text style={styles.buttonText}>Reset Game</Text>
               </Pressable>
             </>
@@ -460,29 +473,19 @@ export function GameScreen() {
         </View>
 
         {/* Initial Turn Modal */}
-        <Modal
-          visible={isInitialTurnModalVisible}
-          animationType="slide"
-          transparent={true}
-        >
+        <Modal visible={isInitialTurnModalVisible} animationType="slide" transparent={true}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>First Turn</Text>
               {currentTurn && (
                 <>
-                  <Text style={styles.teamName}>
-                    Team: {currentTurn.teamName}
-                  </Text>
+                  <Text style={styles.teamName}>Team: {currentTurn.teamName}</Text>
                   <Text style={styles.playerName}>
-                    Player {currentTurn.playerIndex + 1}:{" "}
-                    {currentTurn.playerName}
+                    Player {currentTurn.playerIndex + 1}: {currentTurn.playerName}
                   </Text>
                 </>
               )}
-              <Pressable
-                style={[styles.button, styles.startButton]}
-                onPress={handleStartFirstTurn}
-              >
+              <Pressable style={[styles.button, styles.startButton]} onPress={handleStartFirstTurn}>
                 <Text style={styles.buttonText}>Start Game</Text>
               </Pressable>
             </View>
@@ -490,11 +493,7 @@ export function GameScreen() {
         </Modal>
 
         {/* Next Turn Modal */}
-        <Modal
-          visible={isNextTurnModalVisible}
-          animationType="slide"
-          transparent={true}
-        >
+        <Modal visible={isNextTurnModalVisible} animationType="slide" transparent={true}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Next Turn</Text>
@@ -506,10 +505,7 @@ export function GameScreen() {
                   </Text>
                 </>
               )}
-              <Pressable
-                style={[styles.button, styles.startButton]}
-                onPress={handleStartNextTurn}
-              >
+              <Pressable style={[styles.button, styles.startButton]} onPress={handleStartNextTurn}>
                 <Text style={styles.buttonText}>Start Turn</Text>
               </Pressable>
             </View>
@@ -517,11 +513,7 @@ export function GameScreen() {
         </Modal>
 
         {/* Winner Modal */}
-        <Modal
-          visible={isWinnerModalVisible}
-          animationType="slide"
-          transparent={true}
-        >
+        <Modal visible={isWinnerModalVisible} animationType="slide" transparent={true}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Game Over</Text>
@@ -533,36 +525,28 @@ export function GameScreen() {
                 <Text style={styles.teamName}>{teamSettings.team1Name}</Text>
                 {teamSettings.team1Players.map((player, index) => (
                   <Text key={index} style={styles.playerScore}>
-                    Player {index + 1}: {player} scored{" "}
-                    {playerScores.team1[index]} points
+                    Player {index + 1}: {player} scored {playerScores.team1[index]} points
                   </Text>
                 ))}
                 <Text style={styles.teamTotal}>
-                  Team Total:{" "}
-                  {playerScores.team1.reduce((acc, score) => acc + score, 0)}{" "}
-                  points
+                  Team Total: {playerScores.team1.reduce((acc, score) => acc + score, 0)} points
                 </Text>
 
-                <Text style={[styles.teamName, styles.secondTeam]}>
-                  {teamSettings.team2Name}
-                </Text>
+                <Text style={[styles.teamName, styles.secondTeam]}>{teamSettings.team2Name}</Text>
                 {teamSettings.team2Players.map((player, index) => (
                   <Text key={index} style={styles.playerScore}>
-                    Player {index + 1}: {player} scored{" "}
-                    {playerScores.team2[index]} points
+                    Player {index + 1}: {player} scored {playerScores.team2[index]} points
                   </Text>
                 ))}
                 <Text style={styles.teamTotal}>
-                  Team Total:{" "}
-                  {playerScores.team2.reduce((acc, score) => acc + score, 0)}{" "}
-                  points
+                  Team Total: {playerScores.team2.reduce((acc, score) => acc + score, 0)} points
                 </Text>
               </View>
               <Pressable
                 style={[styles.button, styles.startButton]}
                 onPress={() => {
                   setIsWinnerModalVisible(false);
-                  navigation.navigate("Home");
+                  navigation.navigate('Home');
                 }}
               >
                 <Text style={styles.buttonText}>Back to Home</Text>
@@ -573,10 +557,7 @@ export function GameScreen() {
       </View>
 
       {(isInitialTurnModalVisible || isNextTurnModalVisible) && (
-        <BlurView
-          intensity={100}
-          style={[StyleSheet.absoluteFill, styles.blurOverlay]}
-        />
+        <BlurView intensity={100} style={[StyleSheet.absoluteFill, styles.blurOverlay]} />
       )}
     </View>
   );
@@ -585,55 +566,55 @@ export function GameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: '#F8F9FA',
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 10,
   },
   backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    position: "absolute",
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'absolute',
     left: 16,
     zIndex: 1,
   },
   backButtonText: {
     marginLeft: 4,
     fontSize: 16,
-    color: "#2C3E50",
+    color: '#2C3E50',
   },
   title: {
     flex: 1,
     fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#2C3E50",
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#2C3E50',
   },
   content: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 24,
   },
   scoreContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
     gap: 32,
     marginBottom: 20,
-    width: "100%",
+    width: '100%',
   },
   scoreItem: {
-    alignItems: "center",
-    backgroundColor: "white",
+    alignItems: 'center',
+    backgroundColor: 'white',
     padding: 16,
     borderRadius: 12,
     minWidth: 100,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -644,20 +625,20 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     fontSize: 16,
-    color: "#666",
+    color: '#666',
     marginBottom: 4,
   },
   scoreValue: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#2C3E50",
+    fontWeight: 'bold',
+    color: '#2C3E50',
   },
   timerContainer: {
     marginBottom: 20,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: "white",
-    shadowColor: "#000",
+    backgroundColor: 'white',
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -668,119 +649,119 @@ const styles = StyleSheet.create({
   },
   timer: {
     fontSize: 36,
-    fontWeight: "bold",
-    color: "#2C3E50",
+    fontWeight: 'bold',
+    color: '#2C3E50',
   },
   timerWarning: {
-    color: "#E74C3C",
+    color: '#E74C3C',
   },
   buttonContainer: {
     marginTop: 20,
     gap: 12,
-    width: "100%",
-    alignItems: "center",
+    width: '100%',
+    alignItems: 'center',
   },
   gameButtons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
-    justifyContent: "center",
-    width: "100%",
+    justifyContent: 'center',
+    width: '100%',
   },
   button: {
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     minWidth: 150,
-    alignItems: "center",
+    alignItems: 'center',
   },
   correctButton: {
-    backgroundColor: "#2ECC71",
+    backgroundColor: '#2ECC71',
   },
   skipButton: {
-    backgroundColor: "#E67E22",
+    backgroundColor: '#E67E22',
   },
   resetButton: {
-    backgroundColor: "#34495E",
+    backgroundColor: '#34495E',
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    color: "white",
+    color: 'white',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   noSkipsLeft: {
-    color: "#E74C3C", // Red color to indicate no skips remaining
+    color: '#E74C3C', // Red color to indicate no skips remaining
   },
   saveButton: {
-    backgroundColor: "#3498DB",
-    width: "100%",
+    backgroundColor: '#3498DB',
+    width: '100%',
     maxWidth: 300,
   },
   turnInfo: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 20,
   },
   teamName: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#2C3E50",
+    fontWeight: 'bold',
+    color: '#2C3E50',
     marginBottom: 8,
   },
   playerName: {
     fontSize: 20,
-    color: "#34495E",
+    color: '#34495E',
   },
   startButton: {
-    backgroundColor: "#2ECC71",
+    backgroundColor: '#2ECC71',
     marginTop: 24,
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: 'white',
     padding: 20,
     borderRadius: 12,
-    width: "80%",
+    width: '80%',
     maxWidth: 300,
   },
   modalTitle: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#2C3E50",
+    fontWeight: 'bold',
+    color: '#2C3E50',
     marginBottom: 20,
   },
   hidden: {
     opacity: 0,
   },
   blurOverlay: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
   },
   winnerText: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#2ECC71",
+    fontWeight: 'bold',
+    color: '#2ECC71',
     marginBottom: 10,
   },
   modalSubtitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#34495E",
+    fontWeight: 'bold',
+    color: '#34495E',
     marginBottom: 10,
   },
   playerScore: {
     fontSize: 16,
-    color: "#34495E",
+    color: '#34495E',
     marginBottom: 5,
   },
   secondTeam: {
@@ -788,8 +769,8 @@ const styles = StyleSheet.create({
   },
   teamTotal: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#2C3E50",
+    fontWeight: '600',
+    color: '#2C3E50',
     marginTop: 8,
     marginBottom: 8,
   },
