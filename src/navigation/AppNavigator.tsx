@@ -5,6 +5,7 @@ import { GameScreen } from "../screens/GameScreen";
 import { LeaderboardScreen } from "../screens/LeaderboardScreen";
 import TeamSetupScreen from "../screens/TeamSetupScreen";
 import { RootStackParamList } from "../types/navigation";
+import { CategorySetupScreen } from "../screens/CategorySetupScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -33,6 +34,11 @@ export function AppNavigator() {
           name="TeamSetupScreen"
           component={TeamSetupScreen}
           options={{ title: "Team Setup" }}
+        />
+        <Stack.Screen
+          name="CategorySetup"
+          component={CategorySetupScreen}
+          options={{ title: "Select Categories" }}
         />
         <Stack.Screen
           name="Game"
