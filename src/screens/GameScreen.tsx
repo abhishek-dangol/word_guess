@@ -1,4 +1,4 @@
-import { View, StyleSheet, Pressable, Text, Alert, Modal } from 'react-native';
+import { View, StyleSheet, Pressable, Text, Alert, Modal, Animated } from 'react-native';
 import { WordCard } from '../components/WordCard';
 import { getRandomCard } from '../lib/cardService';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -9,6 +9,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { BlurView } from 'expo-blur';
+import { Audio } from 'expo-av';
 
 const INITIAL_TIME = 10; // Initial timer value in seconds
 const MAX_SKIPS = 3; // Maximum number of skips allowed per round
@@ -89,29 +90,34 @@ export function GameScreen() {
   const fetchNewCard = useCallback(async () => {
     console.log('Fetching new card...');
     try {
-      // First get the count of matching cards
-      const { count } = await supabase
+      // Log the query parameters for debugging
+      console.log('Query params:', {
+        categories: selectedCategories,
+        set: gameSettings.selectedSet,
+      });
+
+      // First get all matching cards
+      const { data: allCards, error: countError } = await supabase
         .from('carddata')
-        .select('*', { count: 'exact', head: true })
+        .select('cardnumber')
         .in('category', selectedCategories)
         .eq('set', gameSettings.selectedSet);
 
-      if (!count) {
-        console.error('No cards found');
+      if (countError) throw countError;
+
+      if (!allCards || allCards.length === 0) {
+        console.error('No cards found for the selected categories and set');
         return;
       }
 
-      // Get a random offset
-      const randomOffset = Math.floor(Math.random() * count);
-
-      // Fetch one random card using the offset
+      // Get a random card from the matching cards
+      const randomIndex = Math.floor(Math.random() * allCards.length);
       const { data, error } = await supabase
         .from('carddata')
         .select('cardnumber, tabooword, hintwords, category, set')
         .in('category', selectedCategories)
         .eq('set', gameSettings.selectedSet)
-        .range(randomOffset, randomOffset)
-        .limit(1)
+        .eq('cardnumber', allCards[randomIndex].cardnumber)
         .single();
 
       if (error) throw error;
@@ -276,38 +282,96 @@ export function GameScreen() {
   ]);
 
   // Timer countdown effect
-  useEffect(() => {
-    if (!isTimerActive || timeLeft <= 0) return;
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const intervalId = setInterval(() => {
+  // Add new state for Time's Up modal
+  const [isTimeUpModalVisible, setIsTimeUpModalVisible] = useState(false);
+
+  // Add state for sound
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  // Add function to play sound
+  const playTimeUpSound = async () => {
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/timer-end.mp3'), // Note the path change
+        { shouldPlay: true },
+      );
+      setSound(newSound);
+
+      // Play the sound
+      await newSound.playAsync();
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    }
+  };
+
+  // Clean up sound when component unmounts
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
+  // Modify the timer effect
+  useEffect(() => {
+    if (!isTimerActive) return;
+
+    timerRef.current = setInterval(() => {
       setTimeLeft((prevTime) => {
         if (prevTime <= 1) {
-          clearInterval(intervalId);
+          clearInterval(timerRef.current!);
           setIsTimerActive(false);
-          handleEndTurn(); // Call handleEndTurn when timer reaches 0
+          playTimeUpSound();
+          setIsTimeUpModalVisible(true);
+
+          // Add delay before showing next turn
+          setTimeout(() => {
+            setIsTimeUpModalVisible(false);
+            handleEndTurn();
+          }, 2000);
+
           return 0;
         }
         return prevTime - 1;
       });
     }, 1000);
 
-    // Cleanup interval on unmount or when timer stops
-    return () => clearInterval(intervalId);
-  }, [timeLeft, isTimerActive, handleEndTurn]);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isTimerActive, handleEndTurn]);
 
-  // Handler for correct guess
+  // Add this ref at the top with other refs
+  const isProcessingRef = useRef(false);
+
+  // Update the handleCorrect function
   const handleCorrect = async () => {
-    if (isTimerActive) {
-      setScore((prev) => prev + 1);
-      await fetchNewCard();
+    if (isTimerActive && !isProcessingRef.current) {
+      try {
+        isProcessingRef.current = true;
+        setScore((prev) => prev + 1);
+        await fetchNewCard();
+      } finally {
+        isProcessingRef.current = false;
+      }
     }
   };
 
-  // Handler for skipping word
+  // Update the handleSkip function similarly
   const handleSkip = async () => {
-    if (isTimerActive && skips < MAX_SKIPS) {
-      setSkips((prev) => prev + 1);
-      await fetchNewCard();
+    if (isTimerActive && skips < MAX_SKIPS && !isProcessingRef.current) {
+      try {
+        isProcessingRef.current = true;
+        setSkips((prev) => prev + 1);
+        await fetchNewCard();
+      } finally {
+        isProcessingRef.current = false;
+      }
     }
   };
 
@@ -446,12 +510,15 @@ export function GameScreen() {
                 style={[
                   styles.button,
                   styles.skipButton,
+                  remainingSkips === 0 && styles.disabledButton,
                   (!isTimerActive || remainingSkips === 0) && styles.buttonDisabled,
                 ]}
                 onPress={handleSkip}
                 disabled={!isTimerActive || remainingSkips === 0}
               >
-                <Text style={styles.buttonText}>
+                <Text
+                  style={[styles.buttonText, remainingSkips === 0 && styles.disabledButtonText]}
+                >
                   Skip {remainingSkips > 0 ? `(${remainingSkips})` : ''}
                 </Text>
               </Pressable>
@@ -556,6 +623,16 @@ export function GameScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Time's Up Modal */}
+        <Modal visible={isTimeUpModalVisible} transparent={true}>
+          <View style={styles.timeUpModalOverlay}>
+            <Animated.View style={styles.timeUpModalContent}>
+              <Text style={styles.timeUpText}>Time's Up!</Text>
+              <Text style={styles.finalScoreText}>Final Score: {score}</Text>
+            </Animated.View>
+          </View>
+        </Modal>
       </View>
 
       {(isInitialTurnModalVisible || isNextTurnModalVisible) && (
@@ -574,8 +651,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   backButton: {
     flexDirection: 'row',
@@ -598,16 +675,17 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   scoreContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 32,
-    marginBottom: 20,
+    marginBottom: 12,
     width: '100%',
   },
   scoreItem: {
@@ -703,7 +781,7 @@ const styles = StyleSheet.create({
   },
   turnInfo: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   teamName: {
     fontSize: 24,
@@ -775,5 +853,48 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     marginTop: 8,
     marginBottom: 8,
+  },
+  disabledButton: {
+    backgroundColor: '#D1D5DB', // Grey color
+    borderColor: '#9CA3AF',
+  },
+  disabledButtonText: {
+    color: '#6B7280', // Darker grey for text
+  },
+  timeUpModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  timeUpModalContent: {
+    backgroundColor: '#E74C3C',
+    padding: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10,
+  },
+  timeUpText: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+  },
+  finalScoreText: {
+    fontSize: 24,
+    color: 'white',
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });
