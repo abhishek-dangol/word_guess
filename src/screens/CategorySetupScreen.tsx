@@ -8,7 +8,10 @@ import { supabase } from '../lib/supabase';
 import { AntDesign } from '@expo/vector-icons';
 
 type CategorySetupScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'CategorySetup'>;
+  navigation: NativeStackNavigationProp<
+    RootStackParamList,
+    'CategorySetup' | 'TeamSetupScreen' | 'SetSetupScreen'
+  >;
   route: RouteProp<RootStackParamList, 'CategorySetup'>;
 };
 
@@ -39,8 +42,8 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
       if (prev.includes(category)) {
         return prev.filter((c) => c !== category);
       }
-      if (prev.length >= 5) {
-        Alert.alert('Maximum Categories', 'You can select up to 5 categories.');
+      if (prev.length >= 10) {
+        Alert.alert('Maximum Categories', 'You can select up to 10 categories.');
         return prev;
       }
       return [...prev, category];
@@ -56,7 +59,7 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
       return;
     }
 
-    navigation.navigate('Game', {
+    navigation.navigate('SetSetupScreen', {
       gameSettings: {
         teamSettings,
         selectedCategories,
@@ -73,7 +76,7 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
         </Pressable>
       </View>
 
-      <Text style={styles.instructions}>Select 2-5 categories for your game:</Text>
+      <Text style={styles.instructions}>Select 2-10 categories for your game:</Text>
 
       <ScrollView style={styles.categoriesList}>
         {categories.map((category) => (
@@ -98,9 +101,9 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
       </ScrollView>
 
       <View style={styles.bottomContainer}>
-        <Text style={styles.selectionCount}>Selected: {selectedCategories.length}/5</Text>
+        <Text style={styles.selectionCount}>Selected: {selectedCategories.length}/10</Text>
         <Button mode="contained" onPress={handleStartGame} style={styles.startButton}>
-          Start Game
+          Next Step: Select Set
         </Button>
       </View>
     </View>

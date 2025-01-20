@@ -93,7 +93,8 @@ export function GameScreen() {
       const { count } = await supabase
         .from('carddata')
         .select('*', { count: 'exact', head: true })
-        .in('category', selectedCategories);
+        .in('category', selectedCategories)
+        .eq('set', gameSettings.selectedSet);
 
       if (!count) {
         console.error('No cards found');
@@ -108,6 +109,7 @@ export function GameScreen() {
         .from('carddata')
         .select('cardnumber, tabooword, hintwords, category, set')
         .in('category', selectedCategories)
+        .eq('set', gameSettings.selectedSet)
         .range(randomOffset, randomOffset)
         .limit(1)
         .single();
@@ -128,7 +130,7 @@ export function GameScreen() {
     } catch (error) {
       console.error('Error fetching card:', error);
     }
-  }, [selectedCategories]);
+  }, [selectedCategories, gameSettings.selectedSet]);
 
   // Add useEffect to fetch initial card
   useEffect(() => {

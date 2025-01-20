@@ -17,4 +17,5 @@ export interface CardData {
 export interface GameSettings {
   teamSettings: TeamSettings;
   selectedCategories: string[];
+  selectedSet: string;
 }
