@@ -11,7 +11,7 @@ import { RootStackParamList } from '../types/navigation';
 import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
 
-const INITIAL_TIME = 120; // Initial timer value in seconds
+const INITIAL_TIME = 5; // Initial timer value in seconds
 const MAX_SKIPS = 3; // Maximum number of skips allowed per round
 
 // Interface for tracking player turns
@@ -223,14 +223,19 @@ export function GameScreen() {
       if (wasDisqualified) {
         newScores[teamKey][currentTurn.playerIndex] = 0;
       } else {
-        // Only add score if not disqualified
-        newScores[teamKey][currentTurn.playerIndex] += score;
+        newScores[teamKey][currentTurn.playerIndex] = score;
       }
 
       // If this was the last turn, calculate winner and show modal
       if (turnCount + 1 >= totalPlayers) {
-        const team1Total = newScores.team1.reduce((acc, s) => acc + (s || 0), 0);
-        const team2Total = newScores.team2.reduce((acc, s) => acc + (s || 0), 0);
+        // Calculate totals after ensuring all disqualified scores are 0
+        const team1Total = newScores.team1
+          .map((s) => (s === 0 ? 0 : s))
+          .reduce((acc, s) => acc + s, 0);
+
+        const team2Total = newScores.team2
+          .map((s) => (s === 0 ? 0 : s))
+          .reduce((acc, s) => acc + s, 0);
 
         setTimeout(() => {
           if (team1Total > team2Total) {
@@ -247,8 +252,9 @@ export function GameScreen() {
       return newScores;
     });
 
-    // Reset disqualification flag for next turn
+    // Reset states
     setWasDisqualified(false);
+    setScore(0); // Reset score for next turn
 
     // Mark current player as unavailable
     setAvailablePlayers((prev) => ({
@@ -462,23 +468,39 @@ export function GameScreen() {
 
   // Update handleDisqualification function
   const handleDisqualification = useCallback(() => {
+    if (!currentTurn) return;
+
     setWasDisqualified(true);
     setIsTimerActive(false);
+    setScore(0); // Reset current score
 
     // Immediately update player scores to 0
     setPlayerScores((prev) => {
-      if (!currentTurn) return prev;
-
       const teamKey = `team${currentTurn.teamNumber}` as keyof typeof prev;
       const newScores = { ...prev };
       newScores[teamKey] = [...prev[teamKey]];
-      // Set current player's score to 0, regardless of current score
       newScores[teamKey][currentTurn.playerIndex] = 0;
+
+      // Calculate team totals for winner determination
+      const team1Total = newScores.team1.reduce((acc, s) => acc + (s || 0), 0);
+      const team2Total = newScores.team2.reduce((acc, s) => acc + (s || 0), 0);
+
+      // If this is the last turn, update winner
+      if (turnCount + 1 >= totalPlayers) {
+        setTimeout(() => {
+          if (team1Total > team2Total) {
+            setWinningTeam(teamSettings.team1Name);
+          } else if (team2Total > team1Total) {
+            setWinningTeam(teamSettings.team2Name);
+          } else {
+            setWinningTeam("It's a tie!");
+          }
+          setIsWinnerModalVisible(true);
+        }, 3000);
+      }
+
       return newScores;
     });
-
-    // Reset current score
-    setScore(0);
 
     setIsDisqualifiedModalVisible(true);
     Vibration.vibrate([100, 200, 100]);
@@ -487,7 +509,7 @@ export function GameScreen() {
       setIsDisqualifiedModalVisible(false);
       handleEndTurn();
     }, 3000);
-  }, [currentTurn]);
+  }, [currentTurn, turnCount, totalPlayers, teamSettings]);
 
   return (
     <View style={styles.container}>
@@ -636,8 +658,8 @@ export function GameScreen() {
                   </Text>
                 </>
               )}
-              <Pressable style={[styles.button, styles.startButton]} onPress={handleStartNextTurn}>
-                <Text style={styles.buttonText}>Start Game</Text>
+              <Pressable style={styles.modalButton} onPress={handleStartNextTurn}>
+                <Text style={styles.modalButtonText}>Start Turn</Text>
               </Pressable>
             </View>
           </View>
@@ -669,7 +691,10 @@ export function GameScreen() {
                   </Text>
                 ))}
                 <Text style={styles.teamTotal}>
-                  Team Total: {playerScores.team1.reduce((acc, score) => acc + (score || 0), 0)}{' '}
+                  Team Total:{' '}
+                  {playerScores.team1
+                    .map((score) => (score === 0 ? 0 : score)) // Ensure disqualified scores are 0
+                    .reduce((acc, score) => acc + score, 0)}{' '}
                   points
                 </Text>
 
@@ -689,18 +714,21 @@ export function GameScreen() {
                   </Text>
                 ))}
                 <Text style={styles.teamTotal}>
-                  Team Total: {playerScores.team2.reduce((acc, score) => acc + (score || 0), 0)}{' '}
+                  Team Total:{' '}
+                  {playerScores.team2
+                    .map((score) => (score === 0 ? 0 : score)) // Ensure disqualified scores are 0
+                    .reduce((acc, score) => acc + score, 0)}{' '}
                   points
                 </Text>
               </View>
               <Pressable
-                style={[styles.button, styles.startButton]}
+                style={styles.modalButton}
                 onPress={() => {
                   setIsWinnerModalVisible(false);
                   navigation.navigate('Home');
                 }}
               >
-                <Text style={styles.buttonText}>Back to Home</Text>
+                <Text style={styles.modalButtonText}>Back to Home</Text>
               </Pressable>
             </View>
           </View>
@@ -1004,15 +1032,6 @@ const styles = StyleSheet.create({
   },
   noSkipsLeft: {
     color: '#E74C3C', // Red color to indicate no skips remaining
-  },
-  startButton: {
-    backgroundColor: '#2ECC71',
-    marginTop: 24,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    minWidth: 200, // Add minimum width
-    alignItems: 'center',
   },
   modalButton: {
     backgroundColor: '#2ECC71',
