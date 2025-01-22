@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AntDesign } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,12 +16,15 @@ const skipOptions = [
 
 export function SettingsScreen() {
   const navigation = useNavigation();
-  const { maxSkips, setMaxSkips } = useSettings();
+  const { maxSkips, setMaxSkips, roundDuration, setRoundDuration } = useSettings();
   const [selectedSkips, setSelectedSkips] = useState(maxSkips);
-  const hasChanges = selectedSkips !== maxSkips;
+  const [selectedDuration, setSelectedDuration] = useState(roundDuration.toString());
+
+  const hasChanges = selectedSkips !== maxSkips || Number(selectedDuration) !== roundDuration;
 
   const handleSave = () => {
     setMaxSkips(selectedSkips);
+    setRoundDuration(Number(selectedDuration));
     navigation.navigate('Home');
   };
 
@@ -47,6 +50,17 @@ export function SettingsScreen() {
             value={selectedSkips}
             onChange={(item) => setSelectedSkips(item.value)}
             placeholder="Select skips"
+          />
+        </View>
+
+        <View style={styles.setting}>
+          <Text style={styles.label}>Set Duration for each Round (seconds):</Text>
+          <TextInput
+            style={styles.input}
+            value={selectedDuration}
+            onChangeText={setSelectedDuration}
+            keyboardType="numeric"
+            placeholder="Enter duration in seconds"
           />
         </View>
 
@@ -156,5 +170,20 @@ const styles = StyleSheet.create({
   },
   buttonTextDisabled: {
     color: '#7F8C8D',
+  },
+  input: {
+    height: 50,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+    fontSize: 16,
   },
 });

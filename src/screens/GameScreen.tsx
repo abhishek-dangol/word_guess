@@ -12,8 +12,6 @@ import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
 import { useSettings } from '../context/SettingsContext';
 
-const INITIAL_TIME = 5; // Initial timer value in seconds
-
 // Interface for tracking player turns
 interface PlayerTurn {
   teamNumber: 1 | 2;
@@ -33,11 +31,11 @@ export function GameScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
   const { gameSettings } = route.params;
   const { teamSettings, selectedCategories } = gameSettings;
-  const { maxSkips } = useSettings();
+  const { maxSkips, roundDuration } = useSettings();
 
   // State management for word card, timer, and scoring
   const [currentWordCard, setCurrentWordCard] = useState<CardData | null>(null);
-  const [timeLeft, setTimeLeft] = useState(INITIAL_TIME);
+  const [timeLeft, setTimeLeft] = useState(roundDuration);
   const [isTimerActive, setIsTimerActive] = useState(true);
   const [score, setScore] = useState(0);
   const [skips, setSkips] = useState(0);
@@ -161,13 +159,13 @@ export function GameScreen() {
     setLastTeamNumber(initialTeam);
     setCurrentTurn(firstTurn);
     setCurrentWordCard(null);
-    setTimeLeft(INITIAL_TIME);
+    setTimeLeft(roundDuration);
     setIsTimerActive(false);
     setScore(0);
     setSkips(0);
 
     hasInitialized.current = true; // Mark as initialized
-  }, [teamSettings]);
+  }, [teamSettings, roundDuration]);
 
   // Call initialize only once on mount
   useEffect(() => {
@@ -460,7 +458,7 @@ export function GameScreen() {
     setCurrentTurn(nextTurn);
     setNextTurn(null);
     setIsNextTurnModalVisible(false);
-    setTimeLeft(INITIAL_TIME);
+    setTimeLeft(roundDuration);
     setIsTimerActive(true);
     setScore(0);
     setSkips(0);
@@ -535,11 +533,20 @@ export function GameScreen() {
               </Pressable>
 
               <Pressable
-                style={[styles.button, styles.skipButton, !isTimerActive && styles.buttonDisabled]}
+                style={[
+                  styles.button,
+                  styles.skipButton,
+                  (!isTimerActive || remainingSkips === 0) && styles.buttonDisabled,
+                ]}
                 onPress={handleSkip}
                 disabled={!isTimerActive || remainingSkips === 0}
               >
-                <Text style={styles.buttonText}>
+                <Text
+                  style={[
+                    styles.buttonText,
+                    (!isTimerActive || remainingSkips === 0) && styles.buttonTextDisabled,
+                  ]}
+                >
                   Skip {remainingSkips > 0 ? `(${remainingSkips})` : ''}
                 </Text>
               </Pressable>
@@ -553,7 +560,7 @@ export function GameScreen() {
                 onPress={handleDisqualification}
                 disabled={!isTimerActive}
               >
-                <Text style={styles.buttonText}>End Round</Text>
+                <Text style={styles.buttonText}>Disqualify</Text>
               </Pressable>
             </View>
           )}
@@ -846,7 +853,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   buttonDisabled: {
+    backgroundColor: '#BDC3C7', // Light gray when disabled
     opacity: 0.6,
+  },
+  buttonTextDisabled: {
+    color: '#7F8C8D', // Darker gray for disabled text
   },
   // Modal styles with consistent spacing
   modalOverlay: {
