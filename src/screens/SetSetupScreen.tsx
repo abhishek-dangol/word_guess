@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { Button } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { AntDesign } from '@expo/vector-icons';
+import { getLastGameSession } from '../services/gameSessionService';
 
 type SetSetupScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'SetSetupScreen'>;
@@ -14,8 +15,18 @@ type SetSetupScreenProps = {
 const AVAILABLE_SETS = ['Set One', 'Set Two', 'Set Three', 'Set Four', 'Set Five'];
 
 export function SetSetupScreen({ navigation, route }: SetSetupScreenProps) {
-  const [selectedSet, setSelectedSet] = useState<string | null>(null);
+  const [selectedSet, setSelectedSet] = useState<string>('');
   const { gameSettings } = route.params;
+
+  useEffect(() => {
+    async function loadLastSession() {
+      const lastSession = await getLastGameSession();
+      if (lastSession) {
+        setSelectedSet(lastSession.gameSettings.selectedSet);
+      }
+    }
+    loadLastSession();
+  }, []);
 
   const handleSetSelection = (set: string) => {
     setSelectedSet(set);
