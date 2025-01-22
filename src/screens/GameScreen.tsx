@@ -10,9 +10,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
+import { useSettings } from '../context/SettingsContext';
 
 const INITIAL_TIME = 5; // Initial timer value in seconds
-const MAX_SKIPS = 3; // Maximum number of skips allowed per round
 
 // Interface for tracking player turns
 interface PlayerTurn {
@@ -33,6 +33,7 @@ export function GameScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
   const { gameSettings } = route.params;
   const { teamSettings, selectedCategories } = gameSettings;
+  const { maxSkips } = useSettings();
 
   // State management for word card, timer, and scoring
   const [currentWordCard, setCurrentWordCard] = useState<CardData | null>(null);
@@ -40,6 +41,9 @@ export function GameScreen() {
   const [isTimerActive, setIsTimerActive] = useState(true);
   const [score, setScore] = useState(0);
   const [skips, setSkips] = useState(0);
+
+  // Calculate remaining skips
+  const remainingSkips = maxSkips - skips;
 
   // State for tracking current player turn and available players
   const [currentTurn, setCurrentTurn] = useState<PlayerTurn | null>(null);
@@ -383,7 +387,7 @@ export function GameScreen() {
 
   // Update the handleSkip function
   const handleSkip = async () => {
-    if (isTimerActive && skips < MAX_SKIPS && !isProcessingRef.current) {
+    if (isTimerActive && skips < maxSkips && !isProcessingRef.current) {
       try {
         isProcessingRef.current = true;
         Vibration.vibrate(100); // Slightly longer vibration for 100ms
@@ -394,9 +398,6 @@ export function GameScreen() {
       }
     }
   };
-
-  // Calculate remaining skips
-  const remainingSkips = MAX_SKIPS - skips;
 
   // Handler for starting first turn
   const handleStartFirstTurn = useCallback(() => {

@@ -21,7 +21,7 @@ export type RootStackParamList = {
   Game: {
     gameSettings: GameSettings;
   };
-  Leaderboard: undefined;
+  Settings: undefined;
   SetSetupScreen: {
     gameSettings: { teamSettings: TeamSettings; selectedCategories: string[] };
   };
