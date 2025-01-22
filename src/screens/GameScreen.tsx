@@ -210,6 +210,15 @@ export function GameScreen() {
   // Add a state to track if player was disqualified
   const [wasDisqualified, setWasDisqualified] = useState(false);
 
+  // Add new state to track disqualified players
+  const [disqualifiedPlayers, setDisqualifiedPlayers] = useState<{
+    team1: boolean[];
+    team2: boolean[];
+  }>({
+    team1: Array(teamSettings.team1Players.length).fill(false),
+    team2: Array(teamSettings.team2Players.length).fill(false),
+  });
+
   // Modify handleEndTurn to properly handle disqualification
   const handleEndTurn = useCallback(() => {
     if (!currentTurn) return;
@@ -229,14 +238,13 @@ export function GameScreen() {
 
       // If this was the last turn, calculate winner and show modal
       if (turnCount + 1 >= totalPlayers) {
-        // Calculate totals after ensuring all disqualified scores are 0
         const team1Total = newScores.team1
-          .map((s) => (s === 0 ? 0 : s))
-          .reduce((acc, s) => acc + s, 0);
+          .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
+          .reduce((acc, score) => acc + score, 0);
 
         const team2Total = newScores.team2
-          .map((s) => (s === 0 ? 0 : s))
-          .reduce((acc, s) => acc + s, 0);
+          .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
+          .reduce((acc, score) => acc + score, 0);
 
         setTimeout(() => {
           if (team1Total > team2Total) {
@@ -299,6 +307,7 @@ export function GameScreen() {
     turnCount,
     totalPlayers,
     wasDisqualified,
+    disqualifiedPlayers,
   ]);
 
   // Timer countdown effect
@@ -412,44 +421,26 @@ export function GameScreen() {
 
     setWasDisqualified(true);
     setIsTimerActive(false);
-    setScore(0); // Reset current score
+    setScore(0);
 
-    // Immediately update player scores to 0
-    setPlayerScores((prev) => {
-      const teamKey = `team${currentTurn.teamNumber}` as keyof typeof prev;
-      const newScores = { ...prev };
-      newScores[teamKey] = [...prev[teamKey]];
-      newScores[teamKey][currentTurn.playerIndex] = 0;
-
-      // Calculate team totals for winner determination
-      const team1Total = newScores.team1.reduce((acc, s) => acc + (s || 0), 0);
-      const team2Total = newScores.team2.reduce((acc, s) => acc + (s || 0), 0);
-
-      // If this is the last turn, update winner
-      if (turnCount + 1 >= totalPlayers) {
-        setTimeout(() => {
-          if (team1Total > team2Total) {
-            setWinningTeam(teamSettings.team1Name);
-          } else if (team2Total > team1Total) {
-            setWinningTeam(teamSettings.team2Name);
-          } else {
-            setWinningTeam("It's a tie!");
-          }
-          setIsWinnerModalVisible(true);
-        }, 3000);
-      }
-
-      return newScores;
+    // Mark player as disqualified
+    setDisqualifiedPlayers((prev) => {
+      const newDisqualified = { ...prev };
+      newDisqualified[`team${currentTurn.teamNumber}`] = [...prev[`team${currentTurn.teamNumber}`]];
+      newDisqualified[`team${currentTurn.teamNumber}`][currentTurn.playerIndex] = true;
+      return newDisqualified;
     });
 
+    // Show disqualification modal
     setIsDisqualifiedModalVisible(true);
     Vibration.vibrate([100, 200, 100]);
 
+    // End turn after delay
     setTimeout(() => {
       setIsDisqualifiedModalVisible(false);
       handleEndTurn();
     }, 3000);
-  }, [currentTurn, turnCount, totalPlayers, teamSettings]);
+  }, [currentTurn, handleEndTurn]);
 
   // Add back handleStartNextTurn function
   const handleStartNextTurn = useCallback(() => {
@@ -622,11 +613,11 @@ export function GameScreen() {
                     key={index}
                     style={[
                       styles.playerScore,
-                      playerScores.team1[index] === 0 && styles.disqualifiedScore,
+                      disqualifiedPlayers.team1[index] && styles.disqualifiedScore,
                     ]}
                   >
                     Player {index + 1}: {player} -{' '}
-                    {playerScores.team1[index] === 0
+                    {disqualifiedPlayers.team1[index]
                       ? 'Disqualified (0 points)'
                       : `${playerScores.team1[index]} points`}
                   </Text>
@@ -634,7 +625,7 @@ export function GameScreen() {
                 <Text style={styles.teamTotal}>
                   Team Total:{' '}
                   {playerScores.team1
-                    .map((score) => (score === 0 ? 0 : score)) // Ensure disqualified scores are 0
+                    .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
                     .reduce((acc, score) => acc + score, 0)}{' '}
                   points
                 </Text>
@@ -645,11 +636,11 @@ export function GameScreen() {
                     key={index}
                     style={[
                       styles.playerScore,
-                      playerScores.team2[index] === 0 && styles.disqualifiedScore,
+                      disqualifiedPlayers.team2[index] && styles.disqualifiedScore,
                     ]}
                   >
                     Player {index + 1}: {player} -{' '}
-                    {playerScores.team2[index] === 0
+                    {disqualifiedPlayers.team2[index]
                       ? 'Disqualified (0 points)'
                       : `${playerScores.team2[index]} points`}
                   </Text>
@@ -657,7 +648,7 @@ export function GameScreen() {
                 <Text style={styles.teamTotal}>
                   Team Total:{' '}
                   {playerScores.team2
-                    .map((score) => (score === 0 ? 0 : score)) // Ensure disqualified scores are 0
+                    .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
                     .reduce((acc, score) => acc + score, 0)}{' '}
                   points
                 </Text>
@@ -730,14 +721,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   turnInfo: {
     backgroundColor: 'white',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 12,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -759,21 +750,16 @@ const styles = StyleSheet.create({
   scoreContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingHorizontal: 4,
+    marginBottom: 12,
+    paddingHorizontal: 0,
   },
   scoreItem: {
     flex: 1,
     backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 16,
-    marginHorizontal: 8,
+    padding: 12,
+    borderRadius: 12,
+    marginHorizontal: 4,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   scoreLabel: {
     fontSize: 16,
@@ -789,15 +775,10 @@ const styles = StyleSheet.create({
   // Timer with refined spacing
   timerContainer: {
     backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   timer: {
     fontSize: 40,
@@ -813,32 +794,27 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
-    marginBottom: 100, // Space for buttons
+    paddingHorizontal: 0,
+    marginBottom: 80,
   },
   // Button container with improved positioning
   buttonContainer: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 16,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   gameButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8, // Reduced gap to fit three buttons
+    gap: 6,
   },
   button: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   correctButton: {
     backgroundColor: '#2ECC71',
@@ -848,7 +824,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
   },
