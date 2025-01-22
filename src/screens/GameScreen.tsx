@@ -10,9 +10,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
-
-const INITIAL_TIME = 10; // Initial timer value in seconds
-const MAX_SKIPS = 3; // Maximum number of skips allowed per round
+import { useSettings } from '../context/SettingsContext';
 
 // Interface for tracking player turns
 interface PlayerTurn {
@@ -33,14 +31,17 @@ export function GameScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
   const { gameSettings } = route.params;
   const { teamSettings, selectedCategories } = gameSettings;
+  const { maxSkips, roundDuration } = useSettings();
 
   // State management for word card, timer, and scoring
   const [currentWordCard, setCurrentWordCard] = useState<CardData | null>(null);
-  const [timeLeft, setTimeLeft] = useState(INITIAL_TIME);
+  const [timeLeft, setTimeLeft] = useState(roundDuration);
   const [isTimerActive, setIsTimerActive] = useState(true);
   const [score, setScore] = useState(0);
   const [skips, setSkips] = useState(0);
-  const [isSaving, setIsSaving] = useState(false);
+
+  // Calculate remaining skips
+  const remainingSkips = maxSkips - skips;
 
   // State for tracking current player turn and available players
   const [currentTurn, setCurrentTurn] = useState<PlayerTurn | null>(null);
@@ -158,13 +159,13 @@ export function GameScreen() {
     setLastTeamNumber(initialTeam);
     setCurrentTurn(firstTurn);
     setCurrentWordCard(null);
-    setTimeLeft(INITIAL_TIME);
+    setTimeLeft(roundDuration);
     setIsTimerActive(false);
     setScore(0);
     setSkips(0);
 
     hasInitialized.current = true; // Mark as initialized
-  }, [teamSettings]);
+  }, [teamSettings, roundDuration]);
 
   // Call initialize only once on mount
   useEffect(() => {
@@ -206,23 +207,45 @@ export function GameScreen() {
     }
   }, [playerScores, teamSettings]);
 
-  // Modify handleEndTurn to check if all players have played
+  // Add a state to track if player was disqualified
+  const [wasDisqualified, setWasDisqualified] = useState(false);
+
+  // Add new state to track disqualified players
+  const [disqualifiedPlayers, setDisqualifiedPlayers] = useState<{
+    team1: boolean[];
+    team2: boolean[];
+  }>({
+    team1: Array(teamSettings.team1Players.length).fill(false),
+    team2: Array(teamSettings.team2Players.length).fill(false),
+  });
+
+  // Modify handleEndTurn to properly handle disqualification
   const handleEndTurn = useCallback(() => {
     if (!currentTurn) return;
 
-    // Update player score and handle end of game in a single state update
+    // Update player scores
     setPlayerScores((prev) => {
-      const teamKey = `team${currentTurn.teamNumber}` as keyof typeof playerScores;
+      const teamKey = `team${currentTurn.teamNumber}` as keyof typeof prev;
       const newScores = { ...prev };
       newScores[teamKey] = [...prev[teamKey]];
-      newScores[teamKey][currentTurn.playerIndex] += score;
+
+      // If player was disqualified, ensure score is 0
+      if (wasDisqualified) {
+        newScores[teamKey][currentTurn.playerIndex] = 0;
+      } else {
+        newScores[teamKey][currentTurn.playerIndex] = score;
+      }
 
       // If this was the last turn, calculate winner and show modal
       if (turnCount + 1 >= totalPlayers) {
-        const team1Total = newScores.team1.reduce((acc, s) => acc + s, 0);
-        const team2Total = newScores.team2.reduce((acc, s) => acc + s, 0);
+        const team1Total = newScores.team1
+          .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
+          .reduce((acc, score) => acc + score, 0);
 
-        // Set winner after scores are updated
+        const team2Total = newScores.team2
+          .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
+          .reduce((acc, score) => acc + score, 0);
+
         setTimeout(() => {
           if (team1Total > team2Total) {
             setWinningTeam(teamSettings.team1Name);
@@ -237,6 +260,10 @@ export function GameScreen() {
 
       return newScores;
     });
+
+    // Reset states
+    setWasDisqualified(false);
+    setScore(0); // Reset score for next turn
 
     // Mark current player as unavailable
     setAvailablePlayers((prev) => ({
@@ -279,6 +306,8 @@ export function GameScreen() {
     score,
     turnCount,
     totalPlayers,
+    wasDisqualified,
+    disqualifiedPlayers,
   ]);
 
   // Timer countdown effect
@@ -365,7 +394,7 @@ export function GameScreen() {
 
   // Update the handleSkip function
   const handleSkip = async () => {
-    if (isTimerActive && skips < MAX_SKIPS && !isProcessingRef.current) {
+    if (isTimerActive && skips < maxSkips && !isProcessingRef.current) {
       try {
         isProcessingRef.current = true;
         Vibration.vibrate(100); // Slightly longer vibration for 100ms
@@ -377,72 +406,55 @@ export function GameScreen() {
     }
   };
 
-  // Calculate remaining skips
-  const remainingSkips = MAX_SKIPS - skips;
-
-  // Handler for saving score to Supabase
-  const handleSaveScore = async () => {
-    if (isSaving) return;
-
-    try {
-      setIsSaving(true);
-
-      const { data, error } = await supabase
-        .from('carddata')
-        .select('cardnumber, tabooword, hintwords, category, set')
-        .in('category', gameSettings.selectedCategories);
-
-      if (error) throw error;
-
-      // Make sure to include 'set' when processing the card
-      const processedCards = data.map((card) => ({
-        cardnumber: card.cardnumber,
-        tabooword: card.tabooword,
-        hintwords: card.hintwords,
-        category: card.category,
-        set: card.set,
-      }));
-
-      const { error: supabaseError } = await supabase.from('scores').insert([
-        {
-          score,
-          skips,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (supabaseError) throw supabaseError;
-
-      Alert.alert('Success', 'Your score has been saved!', [
-        { text: 'OK', onPress: handleEndTurn },
-      ]);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save score. Please try again.', [{ text: 'OK' }]);
-      console.error('Error saving score:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Start next turn without calling handleEndTurn directly
-  const handleStartNextTurn = useCallback(async () => {
-    if (!nextTurn) return;
-
-    setCurrentTurn(nextTurn);
-    setNextTurn(null);
-    setIsNextTurnModalVisible(false);
-    setTimeLeft(INITIAL_TIME);
-    setIsTimerActive(true);
-    await fetchNewCard();
-    setScore(0);
-    setSkips(0);
-  }, [nextTurn, fetchNewCard]);
-
   // Handler for starting first turn
   const handleStartFirstTurn = useCallback(() => {
     setIsInitialTurnModalVisible(false);
     setIsTimerActive(true);
   }, []);
+
+  // Add new state for disqualification modal
+  const [isDisqualifiedModalVisible, setIsDisqualifiedModalVisible] = useState(false);
+
+  // Update handleDisqualification function
+  const handleDisqualification = useCallback(() => {
+    if (!currentTurn) return;
+
+    setWasDisqualified(true);
+    setIsTimerActive(false);
+    setScore(0);
+
+    // Mark player as disqualified
+    setDisqualifiedPlayers((prev) => {
+      const newDisqualified = { ...prev };
+      newDisqualified[`team${currentTurn.teamNumber}`] = [...prev[`team${currentTurn.teamNumber}`]];
+      newDisqualified[`team${currentTurn.teamNumber}`][currentTurn.playerIndex] = true;
+      return newDisqualified;
+    });
+
+    // Show disqualification modal
+    setIsDisqualifiedModalVisible(true);
+    Vibration.vibrate([100, 200, 100]);
+
+    // End turn after delay
+    setTimeout(() => {
+      setIsDisqualifiedModalVisible(false);
+      handleEndTurn();
+    }, 3000);
+  }, [currentTurn, handleEndTurn]);
+
+  // Add back handleStartNextTurn function
+  const handleStartNextTurn = useCallback(() => {
+    if (!nextTurn) return;
+
+    setCurrentTurn(nextTurn);
+    setNextTurn(null);
+    setIsNextTurnModalVisible(false);
+    setTimeLeft(roundDuration);
+    setIsTimerActive(true);
+    setScore(0);
+    setSkips(0);
+    fetchNewCard();
+  }, [nextTurn, fetchNewCard]);
 
   return (
     <View style={styles.container}>
@@ -489,12 +501,15 @@ export function GameScreen() {
         </View>
 
         {/* Word card */}
-        {currentWordCard && <WordCard wordCard={currentWordCard} />}
+        {currentWordCard && (
+          <View style={styles.cardWrapper}>
+            <WordCard wordCard={currentWordCard} />
+          </View>
+        )}
 
         {/* Game buttons */}
         <View style={styles.buttonContainer}>
-          {timeLeft > 0 ? (
-            // Game buttons during active play
+          {timeLeft > 0 && isTimerActive && (
             <View style={styles.gameButtons}>
               <Pressable
                 style={[
@@ -512,34 +527,33 @@ export function GameScreen() {
                 style={[
                   styles.button,
                   styles.skipButton,
-                  remainingSkips === 0 && styles.disabledButton,
                   (!isTimerActive || remainingSkips === 0) && styles.buttonDisabled,
                 ]}
                 onPress={handleSkip}
                 disabled={!isTimerActive || remainingSkips === 0}
               >
                 <Text
-                  style={[styles.buttonText, remainingSkips === 0 && styles.disabledButtonText]}
+                  style={[
+                    styles.buttonText,
+                    (!isTimerActive || remainingSkips === 0) && styles.buttonTextDisabled,
+                  ]}
                 >
                   Skip {remainingSkips > 0 ? `(${remainingSkips})` : ''}
                 </Text>
               </Pressable>
-            </View>
-          ) : (
-            // Save score and Reset buttons when game is over
-            <>
-              <Pressable
-                style={[styles.button, styles.saveButton, isSaving && styles.buttonDisabled]}
-                onPress={handleSaveScore}
-                disabled={isSaving}
-              >
-                <Text style={styles.buttonText}>{isSaving ? 'Saving...' : 'Save Score'}</Text>
-              </Pressable>
 
-              <Pressable style={[styles.button, styles.resetButton]} onPress={handleEndTurn}>
-                <Text style={styles.buttonText}>Reset Game</Text>
+              <Pressable
+                style={[
+                  styles.button,
+                  styles.disqualifyButton,
+                  !isTimerActive && styles.buttonDisabled,
+                ]}
+                onPress={handleDisqualification}
+                disabled={!isTimerActive}
+              >
+                <Text style={styles.buttonText}>Disqualify</Text>
               </Pressable>
-            </>
+            </View>
           )}
         </View>
 
@@ -556,8 +570,8 @@ export function GameScreen() {
                   </Text>
                 </>
               )}
-              <Pressable style={[styles.button, styles.startButton]} onPress={handleStartFirstTurn}>
-                <Text style={styles.buttonText}>Start Game</Text>
+              <Pressable style={styles.modalButton} onPress={handleStartFirstTurn}>
+                <Text style={styles.modalButtonText}>Start Game</Text>
               </Pressable>
             </View>
           </View>
@@ -576,8 +590,8 @@ export function GameScreen() {
                   </Text>
                 </>
               )}
-              <Pressable style={[styles.button, styles.startButton]} onPress={handleStartNextTurn}>
-                <Text style={styles.buttonText}>Start Game</Text>
+              <Pressable style={styles.modalButton} onPress={handleStartNextTurn}>
+                <Text style={styles.modalButtonText}>Start Turn</Text>
               </Pressable>
             </View>
           </View>
@@ -595,32 +609,58 @@ export function GameScreen() {
               <View>
                 <Text style={styles.teamName}>{teamSettings.team1Name}</Text>
                 {teamSettings.team1Players.map((player, index) => (
-                  <Text key={index} style={styles.playerScore}>
-                    Player {index + 1}: {player} scored {playerScores.team1[index]} points
+                  <Text
+                    key={index}
+                    style={[
+                      styles.playerScore,
+                      disqualifiedPlayers.team1[index] && styles.disqualifiedScore,
+                    ]}
+                  >
+                    Player {index + 1}: {player} -{' '}
+                    {disqualifiedPlayers.team1[index]
+                      ? 'Disqualified (0 points)'
+                      : `${playerScores.team1[index]} points`}
                   </Text>
                 ))}
                 <Text style={styles.teamTotal}>
-                  Team Total: {playerScores.team1.reduce((acc, score) => acc + score, 0)} points
+                  Team Total:{' '}
+                  {playerScores.team1
+                    .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
+                    .reduce((acc, score) => acc + score, 0)}{' '}
+                  points
                 </Text>
 
                 <Text style={[styles.teamName, styles.secondTeam]}>{teamSettings.team2Name}</Text>
                 {teamSettings.team2Players.map((player, index) => (
-                  <Text key={index} style={styles.playerScore}>
-                    Player {index + 1}: {player} scored {playerScores.team2[index]} points
+                  <Text
+                    key={index}
+                    style={[
+                      styles.playerScore,
+                      disqualifiedPlayers.team2[index] && styles.disqualifiedScore,
+                    ]}
+                  >
+                    Player {index + 1}: {player} -{' '}
+                    {disqualifiedPlayers.team2[index]
+                      ? 'Disqualified (0 points)'
+                      : `${playerScores.team2[index]} points`}
                   </Text>
                 ))}
                 <Text style={styles.teamTotal}>
-                  Team Total: {playerScores.team2.reduce((acc, score) => acc + score, 0)} points
+                  Team Total:{' '}
+                  {playerScores.team2
+                    .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
+                    .reduce((acc, score) => acc + score, 0)}{' '}
+                  points
                 </Text>
               </View>
               <Pressable
-                style={[styles.button, styles.startButton]}
+                style={styles.modalButton}
                 onPress={() => {
                   setIsWinnerModalVisible(false);
                   navigation.navigate('Home');
                 }}
               >
-                <Text style={styles.buttonText}>Back to Home</Text>
+                <Text style={styles.modalButtonText}>Back to Home</Text>
               </Pressable>
             </View>
           </View>
@@ -632,6 +672,16 @@ export function GameScreen() {
             <Animated.View style={styles.timeUpModalContent}>
               <Text style={styles.timeUpText}>Time's Up!</Text>
               <Text style={styles.finalScoreText}>Final Score: {score}</Text>
+            </Animated.View>
+          </View>
+        </Modal>
+
+        {/* Disqualification Modal */}
+        <Modal visible={isDisqualifiedModalVisible} transparent={true}>
+          <View style={styles.timeUpModalOverlay}>
+            <Animated.View style={[styles.timeUpModalContent, styles.disqualifiedModalContent]}>
+              <Text style={styles.timeUpText}>Player Disqualified!</Text>
+              <Text style={styles.finalScoreText}>Score: 0</Text>
             </Animated.View>
           </View>
         </Modal>
@@ -652,108 +702,118 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E9EF',
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    position: 'absolute',
-    left: 16,
-    zIndex: 1,
+    padding: 8,
   },
   backButtonText: {
-    marginLeft: 4,
+    marginLeft: 8,
     fontSize: 16,
     color: '#2C3E50',
-  },
-  title: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#2C3E50',
+    fontWeight: '500',
   },
   content: {
     flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 16,
   },
+  turnInfo: {
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  teamName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  playerName: {
+    fontSize: 16,
+    color: '#34495E',
+  },
+  // Score container with improved spacing
   scoreContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 32,
+    justifyContent: 'space-between',
     marginBottom: 12,
-    width: '100%',
+    paddingHorizontal: 0,
   },
   scoreItem: {
-    alignItems: 'center',
+    flex: 1,
     backgroundColor: 'white',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
-    minWidth: 100,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    marginHorizontal: 4,
+    alignItems: 'center',
   },
   scoreLabel: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 8,
+    fontWeight: '500',
   },
   scoreValue: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#2C3E50',
   },
+  // Timer with refined spacing
   timerContainer: {
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 12,
     backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: 'center',
   },
   timer: {
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: 'bold',
     color: '#2C3E50',
   },
   timerWarning: {
     color: '#E74C3C',
   },
-  buttonContainer: {
-    marginTop: 20,
-    gap: 12,
+  // Card wrapper with balanced spacing
+  cardWrapper: {
+    flex: 1,
     width: '100%',
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 0,
+    marginBottom: 80,
+  },
+  // Button container with improved positioning
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
   },
   gameButtons: {
     flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
-    width: '100%',
+    justifyContent: 'space-between',
+    gap: 6,
   },
   button: {
-    paddingHorizontal: 24,
+    flex: 1,
     paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 150,
+    borderRadius: 12,
     alignItems: 'center',
   },
   correctButton: {
@@ -762,55 +822,39 @@ const styles = StyleSheet.create({
   skipButton: {
     backgroundColor: '#E67E22',
   },
-  resetButton: {
-    backgroundColor: '#34495E',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
   buttonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
-  noSkipsLeft: {
-    color: '#E74C3C', // Red color to indicate no skips remaining
+  buttonDisabled: {
+    backgroundColor: '#BDC3C7', // Light gray when disabled
+    opacity: 0.6,
   },
-  saveButton: {
-    backgroundColor: '#3498DB',
-    width: '100%',
-    maxWidth: 300,
+  buttonTextDisabled: {
+    color: '#7F8C8D', // Darker gray for disabled text
   },
-  turnInfo: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  teamName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    marginBottom: 8,
-  },
-  playerName: {
-    fontSize: 20,
-    color: '#34495E',
-  },
-  startButton: {
-    backgroundColor: '#2ECC71',
-    marginTop: 24,
-  },
+  // Modal styles with consistent spacing
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
   },
   modalContent: {
     backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    width: '80%',
-    maxWidth: 300,
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
   modalTitle: {
     fontSize: 24,
@@ -857,11 +901,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   disabledButton: {
-    backgroundColor: '#D1D5DB', // Grey color
+    backgroundColor: '#D1D5DB',
     borderColor: '#9CA3AF',
   },
   disabledButtonText: {
-    color: '#6B7280', // Darker grey for text
+    color: '#6B7280',
   },
   timeUpModalOverlay: {
     flex: 1,
@@ -898,5 +942,33 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
     fontWeight: '600',
+  },
+  modalButton: {
+    backgroundColor: '#2ECC71',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 24,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  disqualifyButton: {
+    backgroundColor: '#E74C3C', // Red color for disqualification
+  },
+  disqualifiedModalContent: {
+    backgroundColor: '#E74C3C',
+  },
+  disqualifiedScore: {
+    color: '#E74C3C',
+    fontStyle: 'italic',
+  },
+  noSkipsLeft: {
+    color: '#E74C3C', // Red color to indicate no skips remaining
   },
 });
