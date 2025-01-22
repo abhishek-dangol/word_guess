@@ -40,7 +40,6 @@ export function GameScreen() {
   const [isTimerActive, setIsTimerActive] = useState(true);
   const [score, setScore] = useState(0);
   const [skips, setSkips] = useState(0);
-  const [isSaving, setIsSaving] = useState(false);
 
   // State for tracking current player turn and available players
   const [currentTurn, setCurrentTurn] = useState<PlayerTurn | null>(null);
@@ -399,64 +398,6 @@ export function GameScreen() {
   // Calculate remaining skips
   const remainingSkips = MAX_SKIPS - skips;
 
-  // Handler for saving score to Supabase
-  const handleSaveScore = async () => {
-    if (isSaving) return;
-
-    try {
-      setIsSaving(true);
-
-      const { data, error } = await supabase
-        .from('carddata')
-        .select('cardnumber, tabooword, hintwords, category, set')
-        .in('category', gameSettings.selectedCategories);
-
-      if (error) throw error;
-
-      // Make sure to include 'set' when processing the card
-      const processedCards = data.map((card) => ({
-        cardnumber: card.cardnumber,
-        tabooword: card.tabooword,
-        hintwords: card.hintwords,
-        category: card.category,
-        set: card.set,
-      }));
-
-      const { error: supabaseError } = await supabase.from('scores').insert([
-        {
-          score,
-          skips,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (supabaseError) throw supabaseError;
-
-      Alert.alert('Success', 'Your score has been saved!', [
-        { text: 'OK', onPress: handleEndTurn },
-      ]);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save score. Please try again.', [{ text: 'OK' }]);
-      console.error('Error saving score:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Start next turn without calling handleEndTurn directly
-  const handleStartNextTurn = useCallback(async () => {
-    if (!nextTurn) return;
-
-    setCurrentTurn(nextTurn);
-    setNextTurn(null);
-    setIsNextTurnModalVisible(false);
-    setTimeLeft(INITIAL_TIME);
-    setIsTimerActive(true);
-    await fetchNewCard();
-    setScore(0);
-    setSkips(0);
-  }, [nextTurn, fetchNewCard]);
-
   // Handler for starting first turn
   const handleStartFirstTurn = useCallback(() => {
     setIsInitialTurnModalVisible(false);
@@ -511,6 +452,20 @@ export function GameScreen() {
     }, 3000);
   }, [currentTurn, turnCount, totalPlayers, teamSettings]);
 
+  // Add back handleStartNextTurn function
+  const handleStartNextTurn = useCallback(() => {
+    if (!nextTurn) return;
+
+    setCurrentTurn(nextTurn);
+    setNextTurn(null);
+    setIsNextTurnModalVisible(false);
+    setTimeLeft(INITIAL_TIME);
+    setIsTimerActive(true);
+    setScore(0);
+    setSkips(0);
+    fetchNewCard();
+  }, [nextTurn, fetchNewCard]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -564,7 +519,7 @@ export function GameScreen() {
 
         {/* Game buttons */}
         <View style={styles.buttonContainer}>
-          {timeLeft > 0 ? (
+          {timeLeft > 0 && isTimerActive && (
             <View style={styles.gameButtons}>
               <Pressable
                 style={[
@@ -579,18 +534,11 @@ export function GameScreen() {
               </Pressable>
 
               <Pressable
-                style={[
-                  styles.button,
-                  styles.skipButton,
-                  !isTimerActive && styles.buttonDisabled,
-                  remainingSkips === 0 && styles.disabledButton,
-                ]}
+                style={[styles.button, styles.skipButton, !isTimerActive && styles.buttonDisabled]}
                 onPress={handleSkip}
                 disabled={!isTimerActive || remainingSkips === 0}
               >
-                <Text
-                  style={[styles.buttonText, remainingSkips === 0 && styles.disabledButtonText]}
-                >
+                <Text style={styles.buttonText}>
                   Skip {remainingSkips > 0 ? `(${remainingSkips})` : ''}
                 </Text>
               </Pressable>
@@ -607,21 +555,6 @@ export function GameScreen() {
                 <Text style={styles.buttonText}>End Round</Text>
               </Pressable>
             </View>
-          ) : (
-            // Save score and Reset buttons when game is over
-            <>
-              <Pressable
-                style={[styles.button, styles.saveButton, isSaving && styles.buttonDisabled]}
-                onPress={handleSaveScore}
-                disabled={isSaving}
-              >
-                <Text style={styles.buttonText}>{isSaving ? 'Saving...' : 'Save Score'}</Text>
-              </Pressable>
-
-              <Pressable style={[styles.button, styles.resetButton]} onPress={handleEndTurn}>
-                <Text style={styles.buttonText}>Reset Game</Text>
-              </Pressable>
-            </>
           )}
         </View>
 
@@ -1022,17 +955,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
-  saveButton: {
-    backgroundColor: '#3498DB',
-    width: '100%',
-    maxWidth: 300,
-  },
-  resetButton: {
-    backgroundColor: '#34495E',
-  },
-  noSkipsLeft: {
-    color: '#E74C3C', // Red color to indicate no skips remaining
-  },
   modalButton: {
     backgroundColor: '#2ECC71',
     paddingHorizontal: 32,
@@ -1057,5 +979,8 @@ const styles = StyleSheet.create({
   disqualifiedScore: {
     color: '#E74C3C',
     fontStyle: 'italic',
+  },
+  noSkipsLeft: {
+    color: '#E74C3C', // Red color to indicate no skips remaining
   },
 });
