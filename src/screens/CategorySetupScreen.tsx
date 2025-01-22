@@ -6,6 +6,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { supabase } from '../lib/supabase';
 import { AntDesign } from '@expo/vector-icons';
+import { getLastGameSession } from '../services/gameSessionService';
 
 type CategorySetupScreenProps = {
   navigation: NativeStackNavigationProp<
@@ -22,6 +23,16 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
 
   useEffect(() => {
     fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    async function loadLastSession() {
+      const lastSession = await getLastGameSession();
+      if (lastSession) {
+        setSelectedCategories(lastSession.gameSettings.selectedCategories);
+      }
+    }
+    loadLastSession();
   }, []);
 
   const fetchCategories = async () => {

@@ -11,6 +11,8 @@ import { RootStackParamList } from '../types/navigation';
 import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
 import { useSettings } from '../context/SettingsContext';
+import { saveGameSession } from '../services/gameSessionService';
+import type { GameSession } from '../types/game';
 
 // Interface for tracking player turns
 interface PlayerTurn {
@@ -236,7 +238,7 @@ export function GameScreen() {
         newScores[teamKey][currentTurn.playerIndex] = score;
       }
 
-      // If this was the last turn, calculate winner and show modal
+      // If this was the last turn
       if (turnCount + 1 >= totalPlayers) {
         const team1Total = newScores.team1
           .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
@@ -245,6 +247,27 @@ export function GameScreen() {
         const team2Total = newScores.team2
           .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
           .reduce((acc, score) => acc + score, 0);
+
+        // Save game session
+        const gameSession: GameSession = {
+          timestamp: Date.now(),
+          teamSettings: {
+            team1Name: teamSettings.team1Name,
+            team1Players: teamSettings.team1Players,
+            team2Name: teamSettings.team2Name,
+            team2Players: teamSettings.team2Players,
+          },
+          gameSettings: {
+            selectedCategories,
+            selectedSet: gameSettings.selectedSet,
+          },
+          settings: {
+            maxSkips,
+            roundDuration,
+          },
+        };
+
+        saveGameSession(gameSession);
 
         setTimeout(() => {
           if (team1Total > team2Total) {
@@ -308,6 +331,10 @@ export function GameScreen() {
     totalPlayers,
     wasDisqualified,
     disqualifiedPlayers,
+    gameSettings,
+    maxSkips,
+    roundDuration,
+    selectedCategories,
   ]);
 
   // Timer countdown effect

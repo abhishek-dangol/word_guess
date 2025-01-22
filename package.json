@@ -36,7 +36,8 @@
     "react-native-shadow-2": "^7.1.1",
     "react-native-svg": "15.8.0",
     "react-native-url-polyfill": "^2.0.0",
-    "styled-components": "^6.1.14"
+    "styled-components": "^6.1.14",
+    "@react-native-async-storage/async-storage": "1.23.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

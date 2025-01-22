@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
@@ -12,6 +12,7 @@ import { Button } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { AntDesign } from '@expo/vector-icons';
+import { getLastGameSession } from '../services/gameSessionService';
 
 type TeamSetupScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -75,6 +76,22 @@ const TeamSetupScreen: React.FC<TeamSetupScreenProps> = ({ navigation }) => {
       },
     });
   };
+
+  useEffect(() => {
+    async function loadLastSession() {
+      const lastSession = await getLastGameSession();
+      if (lastSession) {
+        setTeamSettings((prev) => ({
+          ...prev,
+          team1Name: lastSession.teamSettings.team1Name,
+          team1Players: lastSession.teamSettings.team1Players,
+          team2Name: lastSession.teamSettings.team2Name,
+          team2Players: lastSession.teamSettings.team2Players,
+        }));
+      }
+    }
+    loadLastSession();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
