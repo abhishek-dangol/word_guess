@@ -225,64 +225,76 @@ export function GameScreen() {
   const handleEndTurn = useCallback(() => {
     if (!currentTurn) return;
 
-    // Update player scores
+    // First check if all players are disqualified
+    const allTeam1Disqualified = disqualifiedPlayers.team1.every(
+      (isDisqualified) => isDisqualified,
+    );
+    const allTeam2Disqualified = disqualifiedPlayers.team2.every(
+      (isDisqualified) => isDisqualified,
+    );
+
     setPlayerScores((prev) => {
       const teamKey = `team${currentTurn.teamNumber}` as keyof typeof prev;
       const newScores = { ...prev };
       newScores[teamKey] = [...prev[teamKey]];
 
-      // If player was disqualified, ensure score is 0
       if (wasDisqualified) {
         newScores[teamKey][currentTurn.playerIndex] = 0;
       } else {
         newScores[teamKey][currentTurn.playerIndex] = score;
       }
 
-      // If this was the last turn
-      if (turnCount + 1 >= totalPlayers) {
-        const team1Total = newScores.team1
-          .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
-          .reduce((acc, score) => acc + score, 0);
-
-        const team2Total = newScores.team2
-          .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
-          .reduce((acc, score) => acc + score, 0);
-
-        // Save game session
-        const gameSession: GameSession = {
-          timestamp: Date.now(),
-          teamSettings: {
-            team1Name: teamSettings.team1Name,
-            team1Players: teamSettings.team1Players,
-            team2Name: teamSettings.team2Name,
-            team2Players: teamSettings.team2Players,
-          },
-          gameSettings: {
-            selectedCategories,
-            selectedSet: gameSettings.selectedSet,
-          },
-          settings: {
-            maxSkips,
-            roundDuration,
-          },
-        };
-
-        saveGameSession(gameSession);
-
-        setTimeout(() => {
-          if (team1Total > team2Total) {
-            setWinningTeam(teamSettings.team1Name);
-          } else if (team2Total > team1Total) {
-            setWinningTeam(teamSettings.team2Name);
-          } else {
-            setWinningTeam("It's a tie!");
-          }
-          setIsWinnerModalVisible(true);
-        }, 0);
-      }
-
       return newScores;
     });
+
+    // If this was the last turn
+    if (turnCount + 1 >= totalPlayers) {
+      const finalTeam1Total = playerScores.team1
+        .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
+        .reduce((acc, score) => acc + score, 0);
+
+      const finalTeam2Total = playerScores.team2
+        .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
+        .reduce((acc, score) => acc + score, 0);
+
+      // Save game session
+      const gameSession: GameSession = {
+        timestamp: Date.now(),
+        teamSettings: {
+          team1Name: teamSettings.team1Name,
+          team1Players: teamSettings.team1Players,
+          team2Name: teamSettings.team2Name,
+          team2Players: teamSettings.team2Players,
+        },
+        gameSettings: {
+          selectedCategories,
+          selectedSet: gameSettings.selectedSet,
+        },
+        settings: {
+          maxSkips,
+          roundDuration,
+        },
+      };
+
+      saveGameSession(gameSession);
+
+      // Determine winner with simplified logic
+      if (allTeam1Disqualified && allTeam2Disqualified) {
+        setWinningTeam("It's a tie! All players were disqualified");
+      } else if (allTeam1Disqualified) {
+        setWinningTeam(teamSettings.team2Name);
+      } else if (allTeam2Disqualified) {
+        setWinningTeam(teamSettings.team1Name);
+      } else if (finalTeam1Total > finalTeam2Total) {
+        setWinningTeam(teamSettings.team1Name);
+      } else if (finalTeam2Total > finalTeam1Total) {
+        setWinningTeam(teamSettings.team2Name);
+      } else {
+        setWinningTeam("It's a tie!");
+      }
+
+      setIsWinnerModalVisible(true);
+    }
 
     // Reset states
     setWasDisqualified(false);
@@ -630,7 +642,24 @@ export function GameScreen() {
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Game Over</Text>
               <Text style={styles.winnerText}>
-                {winningTeam ? `Winner: ${winningTeam}` : "It's a tie!"}
+                {(() => {
+                  const team1Total = playerScores.team1
+                    .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
+                    .reduce((acc, score) => acc + score, 0);
+                  const team2Total = playerScores.team2
+                    .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
+                    .reduce((acc, score) => acc + score, 0);
+
+                  if (team1Total === 0 && team2Total === 0) {
+                    return "Winner: It's a tie!";
+                  } else if (team1Total > team2Total) {
+                    return `Winner: ${teamSettings.team1Name}`;
+                  } else if (team2Total > team1Total) {
+                    return `Winner: ${teamSettings.team2Name}`;
+                  } else {
+                    return "Winner: It's a tie!";
+                  }
+                })()}
               </Text>
               <Text style={styles.modalSubtitle}>Scores:</Text>
               <View>

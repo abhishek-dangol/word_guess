@@ -54,6 +54,17 @@ const TeamSetupScreen: React.FC<TeamSetupScreenProps> = ({ navigation }) => {
     }));
   };
 
+  const removePlayer = (team: 'team1' | 'team2', index: number) => {
+    setTeamSettings((prev) => ({
+      ...prev,
+      [`${team}Players`]: prev[`${team}Players`].filter((_, i) => i !== index),
+      playersPerTeam: Math.max(
+        team === 'team1' ? prev.team1Players.length - 1 : prev.team1Players.length,
+        team === 'team2' ? prev.team2Players.length - 1 : prev.team2Players.length,
+      ),
+    }));
+  };
+
   const handleStartGame = () => {
     const team1Players = teamSettings.team1Players.filter((name) => name.trim());
     const team2Players = teamSettings.team2Players.filter((name) => name.trim());
@@ -102,60 +113,84 @@ const TeamSetupScreen: React.FC<TeamSetupScreenProps> = ({ navigation }) => {
         </Pressable>
       </View>
 
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.teamSection}>
-          <Text style={styles.sectionTitle}>Team 1</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Team 1 Name"
-            placeholderTextColor="#95A5A6"
-            value={teamSettings.team1Name}
-            onChangeText={(text) => handleTeamNameChange('team1', text)}
-          />
-          {teamSettings.team1Players.map((player, index) => (
+      <View style={styles.contentContainer}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+          <View style={styles.teamSection}>
+            <Text style={styles.sectionTitle}>Team 1</Text>
             <TextInput
-              key={`team1-player-${index}`}
               style={styles.input}
-              placeholder={`Player ${index + 1}`}
+              placeholder="Enter Team 1 Name"
               placeholderTextColor="#95A5A6"
-              value={player}
-              onChangeText={(text) => handlePlayerNameChange('team1', index, text)}
+              value={teamSettings.team1Name}
+              onChangeText={(text) => handleTeamNameChange('team1', text)}
             />
-          ))}
-          <Button mode="outlined" onPress={() => addPlayer('team1')} style={styles.addButton}>
-            Add Player
+            {teamSettings.team1Players.map((player, index) => (
+              <View key={`team1-player-${index}`} style={styles.playerInputContainer}>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={[styles.input, styles.playerInput]}
+                    placeholder={`Player ${index + 1}`}
+                    placeholderTextColor="#95A5A6"
+                    value={player}
+                    onChangeText={(text) => handlePlayerNameChange('team1', index, text)}
+                  />
+                  {index > 0 && (
+                    <Pressable
+                      onPress={() => removePlayer('team1', index)}
+                      style={styles.removeButtonInner}
+                    >
+                      <AntDesign name="minuscircle" size={20} color="#E74C3C" />
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            ))}
+            <Button mode="outlined" onPress={() => addPlayer('team1')} style={styles.addButton}>
+              Add Player
+            </Button>
+          </View>
+
+          <View style={styles.teamSection}>
+            <Text style={styles.sectionTitle}>Team 2</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter Team 2 Name"
+              placeholderTextColor="#95A5A6"
+              value={teamSettings.team2Name}
+              onChangeText={(text) => handleTeamNameChange('team2', text)}
+            />
+            {teamSettings.team2Players.map((player, index) => (
+              <View key={`team2-player-${index}`} style={styles.playerInputContainer}>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={[styles.input, styles.playerInput]}
+                    placeholder={`Player ${index + 1}`}
+                    placeholderTextColor="#95A5A6"
+                    value={player}
+                    onChangeText={(text) => handlePlayerNameChange('team2', index, text)}
+                  />
+                  {index > 0 && (
+                    <Pressable
+                      onPress={() => removePlayer('team2', index)}
+                      style={styles.removeButtonInner}
+                    >
+                      <AntDesign name="minuscircle" size={20} color="#E74C3C" />
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            ))}
+            <Button mode="outlined" onPress={() => addPlayer('team2')} style={styles.addButton}>
+              Add Player
+            </Button>
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomContainer}>
+          <Button mode="contained" onPress={handleStartGame} style={styles.startButton}>
+            Next Step: Select Categories
           </Button>
         </View>
-
-        <View style={styles.teamSection}>
-          <Text style={styles.sectionTitle}>Team 2</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Team 2 Name"
-            placeholderTextColor="#95A5A6"
-            value={teamSettings.team2Name}
-            onChangeText={(text) => handleTeamNameChange('team2', text)}
-          />
-          {teamSettings.team2Players.map((player, index) => (
-            <TextInput
-              key={`team2-player-${index}`}
-              style={styles.input}
-              placeholder={`Player ${index + 1}`}
-              placeholderTextColor="#95A5A6"
-              value={player}
-              onChangeText={(text) => handlePlayerNameChange('team2', index, text)}
-            />
-          ))}
-          <Button mode="outlined" onPress={() => addPlayer('team2')} style={styles.addButton}>
-            Add Player
-          </Button>
-        </View>
-      </ScrollView>
-
-      <View style={styles.bottomContainer}>
-        <Button mode="contained" onPress={handleStartGame} style={styles.startButton}>
-          Next Step: Select Categories
-        </Button>
       </View>
     </SafeAreaView>
   );
@@ -166,9 +201,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  contentContainer: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
     padding: 16,
+    paddingBottom: 24,
   },
   teamSection: {
     marginBottom: 24,
@@ -195,6 +236,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#ECF0F1',
+    backgroundColor: 'white',
   },
   startButton: {
     padding: 8,
@@ -217,6 +259,24 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 16,
     color: '#2C3E50',
+  },
+  playerInputContainer: {
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  playerInput: {
+    flex: 1,
+    marginBottom: 0,
+    paddingRight: 40,
+  },
+  removeButtonInner: {
+    position: 'absolute',
+    right: 12,
+    padding: 4,
   },
 });
 
