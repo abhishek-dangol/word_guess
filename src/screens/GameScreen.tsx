@@ -1,4 +1,15 @@
-import { View, StyleSheet, Pressable, Text, Alert, Modal, Animated, Vibration } from 'react-native';
+import {
+  View,
+  SafeAreaView,
+  StyleSheet,
+  Pressable,
+  Text,
+  Alert,
+  Modal,
+  Animated,
+  Vibration,
+  Platform,
+} from 'react-native';
 import { WordCard } from '../components/WordCard';
 import { getRandomCard } from '../lib/cardService';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -13,6 +24,7 @@ import { Audio } from 'expo-av';
 import { useSettings } from '../context/SettingsContext';
 import { saveGameSession } from '../services/gameSessionService';
 import type { GameSession } from '../types/game';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Interface for tracking player turns
 interface PlayerTurn {
@@ -496,7 +508,7 @@ export function GameScreen() {
   }, [nextTurn, fetchNewCard]);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable style={styles.backButton} onPress={() => navigation.navigate('Home')}>
           <AntDesign name="arrowleft" size={24} color="#2C3E50" />
@@ -536,7 +548,9 @@ export function GameScreen() {
 
         {/* Timer display */}
         <View style={styles.timerContainer}>
-          <Text style={[styles.timer, timeLeft <= 3 && styles.timerWarning]}>{timeLeft}s</Text>
+          <Text style={[styles.timer, timeLeft <= 10 && styles.timerWarning]}>
+            Time Left: {timeLeft} seconds
+          </Text>
         </View>
 
         {/* Word card */}
@@ -746,7 +760,7 @@ export function GameScreen() {
       {(isInitialTurnModalVisible || isNextTurnModalVisible) && (
         <BlurView intensity={100} style={[StyleSheet.absoluteFill, styles.blurOverlay]} />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -759,8 +773,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E9EF',
   },
@@ -778,13 +790,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 6,
   },
   turnInfo: {
     backgroundColor: 'white',
-    padding: 12,
+    padding: 4,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 4,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -802,12 +814,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#34495E',
   },
-  // Score container with improved spacing
+  // Improved Score Layout
   scoreContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingHorizontal: 0,
+    justifyContent: 'space-between', // Ensures equal spacing
+    marginBottom: 8,
   },
   scoreItem: {
     flex: 1,
@@ -828,48 +839,47 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2C3E50',
   },
-  // Timer with refined spacing
+  // Timer Styling
   timerContainer: {
     backgroundColor: 'white',
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 2,
     borderRadius: 12,
     marginBottom: 12,
+    marginTop: 8,
     alignItems: 'center',
   },
   timer: {
-    fontSize: 40,
+    fontSize: 24, // Increased for better visibility
     fontWeight: 'bold',
     color: '#2C3E50',
   },
   timerWarning: {
     color: '#E74C3C',
   },
-  // Card wrapper with balanced spacing
+  // Card Layout Improvements
   cardWrapper: {
-    flex: 1,
     width: '100%',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 0,
-    marginBottom: 80,
+    marginBottom: 2, // Reduced margin for better positioning
+    marginTop: 0.1,
   },
-  // Button container with improved positioning
   buttonContainer: {
-    position: 'absolute',
-    bottom: 16,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
+    width: '100%',
+    paddingBottom: 20, // Ensures spacing on all devices
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   gameButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 8, // Ensures uniform spacing
   },
   button: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 14, // Adjusted for better touch area
+    borderRadius: 10,
     alignItems: 'center',
   },
   correctButton: {
