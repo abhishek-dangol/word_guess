@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dropdown } from 'react-native-element-dropdown';
 import { useSettings } from '../context/SettingsContext';
 import { useState } from 'react';
+import { Picker } from '@react-native-picker/picker';
 
 const skipOptions = [
   { label: '1 skip', value: 1 },
@@ -14,71 +15,10 @@ const skipOptions = [
   { label: '5 skips', value: 5 },
 ];
 
-export function SettingsScreen() {
-  const navigation = useNavigation();
-  const { maxSkips, setMaxSkips, roundDuration, setRoundDuration } = useSettings();
-  const [selectedSkips, setSelectedSkips] = useState(maxSkips);
-  const [selectedDuration, setSelectedDuration] = useState(roundDuration.toString());
-
-  const hasChanges = selectedSkips !== maxSkips || Number(selectedDuration) !== roundDuration;
-
-  const handleSave = () => {
-    setMaxSkips(selectedSkips);
-    setRoundDuration(Number(selectedDuration));
-    navigation.navigate('Home');
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => navigation.navigate('Home')}>
-          <AntDesign name="arrowleft" size={24} color="#2C3E50" />
-          <Text style={styles.backButtonText}>Back</Text>
-        </Pressable>
-      </View>
-      <View style={styles.content}>
-        <Text style={styles.title}>Settings</Text>
-
-        <View style={styles.setting}>
-          <Text style={styles.label}>Select number of Skips:</Text>
-          <Dropdown
-            style={styles.dropdown}
-            data={skipOptions}
-            maxHeight={300}
-            labelField="label"
-            valueField="value"
-            value={selectedSkips}
-            onChange={(item) => setSelectedSkips(item.value)}
-            placeholder="Select skips"
-          />
-        </View>
-
-        <View style={styles.setting}>
-          <Text style={styles.label}>Set Duration for each Round (seconds):</Text>
-          <TextInput
-            style={styles.input}
-            value={selectedDuration}
-            onChangeText={setSelectedDuration}
-            keyboardType="numeric"
-            placeholder="Enter duration in seconds"
-          />
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <Pressable
-            style={[styles.button, !hasChanges && styles.buttonDisabled]}
-            onPress={handleSave}
-            disabled={!hasChanges}
-          >
-            <Text style={[styles.buttonText, !hasChanges && styles.buttonTextDisabled]}>
-              Save Changes
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    </SafeAreaView>
-  );
-}
+const disqualificationOptions = [
+  { label: 'Set score to zero', value: 'zero' },
+  { label: 'Set score to total points scored', value: 'total' },
+];
 
 const styles = StyleSheet.create({
   container: {
@@ -186,4 +126,112 @@ const styles = StyleSheet.create({
     elevation: 2,
     fontSize: 16,
   },
+  picker: {
+    height: 50,
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
 });
+
+export function SettingsScreen() {
+  const navigation = useNavigation();
+  const {
+    maxSkips,
+    setMaxSkips,
+    roundDuration,
+    setRoundDuration,
+    disqualificationRule,
+    updateSettings,
+  } = useSettings();
+  const [selectedSkips, setSelectedSkips] = useState(maxSkips);
+  const [selectedDuration, setSelectedDuration] = useState(roundDuration.toString());
+  const [selectedDisqualificationRule, setSelectedDisqualificationRule] =
+    useState(disqualificationRule);
+
+  const hasChanges =
+    selectedSkips !== maxSkips ||
+    Number(selectedDuration) !== roundDuration ||
+    selectedDisqualificationRule !== disqualificationRule;
+
+  const handleSave = () => {
+    setMaxSkips(selectedSkips);
+    setRoundDuration(Number(selectedDuration));
+    updateSettings('disqualificationRule', selectedDisqualificationRule);
+    navigation.navigate('Home');
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={() => navigation.navigate('Home')}>
+          <AntDesign name="arrowleft" size={24} color="#2C3E50" />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+      </View>
+      <View style={styles.content}>
+        <Text style={styles.title}>Settings</Text>
+
+        <View style={styles.setting}>
+          <Text style={styles.label}>Select Number of Skips Allowed:</Text>
+          <Dropdown
+            style={styles.dropdown}
+            data={skipOptions}
+            maxHeight={300}
+            labelField="label"
+            valueField="value"
+            value={selectedSkips}
+            onChange={(item) => setSelectedSkips(item.value)}
+            placeholder="Select skips"
+          />
+        </View>
+
+        <View style={styles.setting}>
+          <Text style={styles.label}>Set Duration for Each Round (Seconds):</Text>
+          <TextInput
+            style={styles.input}
+            value={selectedDuration}
+            onChangeText={setSelectedDuration}
+            keyboardType="numeric"
+            placeholder="Enter duration in seconds"
+          />
+        </View>
+
+        <View style={styles.setting}>
+          <Text style={styles.label}>Select Player Disqualification Rule:</Text>
+          <Dropdown
+            style={styles.dropdown}
+            data={disqualificationOptions}
+            maxHeight={300}
+            labelField="label"
+            valueField="value"
+            value={selectedDisqualificationRule}
+            onChange={(item) => setSelectedDisqualificationRule(item.value)}
+            placeholder="Select disqualification rule"
+          />
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <Pressable
+            style={[styles.button, !hasChanges && styles.buttonDisabled]}
+            onPress={handleSave}
+            disabled={!hasChanges}
+          >
+            <Text style={[styles.buttonText, !hasChanges && styles.buttonTextDisabled]}>
+              Save Changes
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}

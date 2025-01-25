@@ -45,7 +45,7 @@ export function GameScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
   const { gameSettings } = route.params;
   const { teamSettings, selectedCategories } = gameSettings;
-  const { maxSkips, roundDuration } = useSettings();
+  const { maxSkips, roundDuration, disqualificationRule } = useSettings();
 
   // State management for word card, timer, and scoring
   const [currentWordCard, setCurrentWordCard] = useState<CardData | null>(null);
@@ -237,21 +237,13 @@ export function GameScreen() {
   const handleEndTurn = useCallback(() => {
     if (!currentTurn) return;
 
-    // First check if all players are disqualified
-    const allTeam1Disqualified = disqualifiedPlayers.team1.every(
-      (isDisqualified) => isDisqualified,
-    );
-    const allTeam2Disqualified = disqualifiedPlayers.team2.every(
-      (isDisqualified) => isDisqualified,
-    );
-
     setPlayerScores((prev) => {
       const teamKey = `team${currentTurn.teamNumber}` as keyof typeof prev;
       const newScores = { ...prev };
       newScores[teamKey] = [...prev[teamKey]];
 
       if (wasDisqualified) {
-        newScores[teamKey][currentTurn.playerIndex] = 0;
+        newScores[teamKey][currentTurn.playerIndex] = disqualificationRule === 'zero' ? 0 : score;
       } else {
         newScores[teamKey][currentTurn.playerIndex] = score;
       }
@@ -291,11 +283,14 @@ export function GameScreen() {
       saveGameSession(gameSession);
 
       // Determine winner with simplified logic
-      if (allTeam1Disqualified && allTeam2Disqualified) {
+      if (
+        disqualifiedPlayers.team1.every((isDisqualified) => isDisqualified) &&
+        disqualifiedPlayers.team2.every((isDisqualified) => isDisqualified)
+      ) {
         setWinningTeam("It's a tie! All players were disqualified");
-      } else if (allTeam1Disqualified) {
+      } else if (disqualifiedPlayers.team1.every((isDisqualified) => isDisqualified)) {
         setWinningTeam(teamSettings.team2Name);
-      } else if (allTeam2Disqualified) {
+      } else if (disqualifiedPlayers.team2.every((isDisqualified) => isDisqualified)) {
         setWinningTeam(teamSettings.team1Name);
       } else if (finalTeam1Total > finalTeam2Total) {
         setWinningTeam(teamSettings.team1Name);
@@ -359,6 +354,7 @@ export function GameScreen() {
     maxSkips,
     roundDuration,
     selectedCategories,
+    disqualificationRule,
   ]);
 
   // Timer countdown effect
@@ -472,7 +468,6 @@ export function GameScreen() {
 
     setWasDisqualified(true);
     setIsTimerActive(false);
-    setScore(0);
 
     // Mark player as disqualified
     setDisqualifiedPlayers((prev) => {
@@ -506,6 +501,281 @@ export function GameScreen() {
     setSkips(0);
     fetchNewCard();
   }, [nextTurn, fetchNewCard]);
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#F8F9FA',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: '#E5E9EF',
+    },
+    backButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 8,
+    },
+    backButtonText: {
+      marginLeft: 8,
+      fontSize: 16,
+      color: '#2C3E50',
+      fontWeight: '500',
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 16,
+      paddingTop: 6,
+    },
+    turnInfo: {
+      backgroundColor: 'white',
+      padding: 4,
+      borderRadius: 12,
+      marginBottom: 4,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    teamName: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: '#2C3E50',
+      marginBottom: 4,
+    },
+    playerName: {
+      fontSize: 16,
+      color: '#34495E',
+    },
+    // Improved Score Layout
+    scoreContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between', // Ensures equal spacing
+      marginBottom: 8,
+    },
+    scoreItem: {
+      flex: 1,
+      backgroundColor: 'white',
+      padding: 12,
+      borderRadius: 12,
+      marginHorizontal: 4,
+      alignItems: 'center',
+    },
+    scoreLabel: {
+      fontSize: 16,
+      color: '#666',
+      marginBottom: 8,
+      fontWeight: '500',
+    },
+    scoreValue: {
+      fontSize: 28,
+      fontWeight: 'bold',
+      color: '#2C3E50',
+    },
+    // Timer Styling
+    timerContainer: {
+      backgroundColor: 'white',
+      paddingVertical: 10,
+      paddingHorizontal: 2,
+      borderRadius: 12,
+      marginBottom: 12,
+      marginTop: 8,
+      alignItems: 'center',
+    },
+    timer: {
+      fontSize: 24, // Increased for better visibility
+      fontWeight: 'bold',
+      color: '#2C3E50',
+    },
+    timerWarning: {
+      color: '#E74C3C',
+    },
+    // Card Layout Improvements
+    cardWrapper: {
+      width: '100%',
+      alignItems: 'center',
+      marginBottom: 2, // Reduced margin for better positioning
+      marginTop: 0.1,
+    },
+    buttonContainer: {
+      width: '100%',
+      paddingBottom: 20, // Ensures spacing on all devices
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    gameButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 8, // Ensures uniform spacing
+    },
+    button: {
+      flex: 1,
+      paddingVertical: 14, // Adjusted for better touch area
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    correctButton: {
+      backgroundColor: '#2ECC71',
+    },
+    skipButton: {
+      backgroundColor: '#E67E22',
+    },
+    buttonText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    buttonDisabled: {
+      backgroundColor: '#BDC3C7', // Light gray when disabled
+      opacity: 0.6,
+    },
+    buttonTextDisabled: {
+      color: '#7F8C8D', // Darker gray for disabled text
+    },
+    // Modal styles with consistent spacing
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: 'white',
+      borderRadius: 16,
+      padding: 24,
+      width: '90%',
+      maxWidth: 400,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#2C3E50',
+      marginBottom: 20,
+    },
+    hidden: {
+      opacity: 0,
+    },
+    blurOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    },
+    winnerText: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: '#2ECC71',
+      marginBottom: 10,
+    },
+    modalSubtitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#34495E',
+      marginBottom: 10,
+    },
+    playerScore: {
+      fontSize: 16,
+      color: '#34495E',
+      marginBottom: 5,
+    },
+    secondTeam: {
+      marginTop: 16,
+    },
+    teamTotal: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#2C3E50',
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    disabledButton: {
+      backgroundColor: '#D1D5DB',
+      borderColor: '#9CA3AF',
+    },
+    disabledButtonText: {
+      color: '#6B7280',
+    },
+    timeUpModalOverlay: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    },
+    timeUpModalContent: {
+      backgroundColor: '#E74C3C',
+      padding: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 10,
+    },
+    timeUpText: {
+      fontSize: 48,
+      fontWeight: 'bold',
+      color: 'white',
+      textAlign: 'center',
+      marginBottom: 16,
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 2, height: 2 },
+      textShadowRadius: 4,
+    },
+    finalScoreText: {
+      fontSize: 24,
+      color: 'white',
+      textAlign: 'center',
+      fontWeight: '600',
+    },
+    modalButton: {
+      backgroundColor: '#2ECC71',
+      paddingHorizontal: 32,
+      paddingVertical: 16,
+      borderRadius: 12,
+      marginTop: 24,
+      minWidth: 200,
+      alignItems: 'center',
+    },
+    modalButtonText: {
+      color: 'white',
+      fontSize: 18,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    disqualifyButton: {
+      backgroundColor: '#E74C3C', // Red color for disqualification
+    },
+    disqualifiedModalContent: {
+      backgroundColor: '#E74C3C',
+    },
+    disqualifiedScore: {
+      color: '#E74C3C',
+      fontStyle: 'italic',
+    },
+    noSkipsLeft: {
+      color: '#E74C3C', // Red color to indicate no skips remaining
+    },
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -658,10 +928,18 @@ export function GameScreen() {
               <Text style={styles.winnerText}>
                 {(() => {
                   const team1Total = playerScores.team1
-                    .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
+                    .map((score, index) =>
+                      disqualifiedPlayers.team1[index] && disqualificationRule === 'zero'
+                        ? 0
+                        : score,
+                    )
                     .reduce((acc, score) => acc + score, 0);
                   const team2Total = playerScores.team2
-                    .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
+                    .map((score, index) =>
+                      disqualifiedPlayers.team2[index] && disqualificationRule === 'zero'
+                        ? 0
+                        : score,
+                    )
                     .reduce((acc, score) => acc + score, 0);
 
                   if (team1Total === 0 && team2Total === 0) {
@@ -675,7 +953,7 @@ export function GameScreen() {
                   }
                 })()}
               </Text>
-              <Text style={styles.modalSubtitle}>Scores:</Text>
+              <Text style={styles.modalSubtitle}>Summary</Text>
               <View>
                 <Text style={styles.teamName}>{teamSettings.team1Name}</Text>
                 {teamSettings.team1Players.map((player, index) => (
@@ -688,14 +966,18 @@ export function GameScreen() {
                   >
                     Player {index + 1}: {player} -{' '}
                     {disqualifiedPlayers.team1[index]
-                      ? 'Disqualified (0 points)'
+                      ? `Disqualified (${disqualificationRule === 'zero' ? '0' : playerScores.team1[index]} points)`
                       : `${playerScores.team1[index]} points`}
                   </Text>
                 ))}
                 <Text style={styles.teamTotal}>
                   Team Total:{' '}
                   {playerScores.team1
-                    .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
+                    .map((score, index) =>
+                      disqualifiedPlayers.team1[index] && disqualificationRule === 'zero'
+                        ? 0
+                        : score,
+                    )
                     .reduce((acc, score) => acc + score, 0)}{' '}
                   points
                 </Text>
@@ -711,14 +993,18 @@ export function GameScreen() {
                   >
                     Player {index + 1}: {player} -{' '}
                     {disqualifiedPlayers.team2[index]
-                      ? 'Disqualified (0 points)'
+                      ? `Disqualified (${disqualificationRule === 'zero' ? '0' : playerScores.team2[index]} points)`
                       : `${playerScores.team2[index]} points`}
                   </Text>
                 ))}
                 <Text style={styles.teamTotal}>
                   Team Total:{' '}
                   {playerScores.team2
-                    .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
+                    .map((score, index) =>
+                      disqualifiedPlayers.team2[index] && disqualificationRule === 'zero'
+                        ? 0
+                        : score,
+                    )
                     .reduce((acc, score) => acc + score, 0)}{' '}
                   points
                 </Text>
@@ -751,290 +1037,13 @@ export function GameScreen() {
           <View style={styles.timeUpModalOverlay}>
             <Animated.View style={[styles.timeUpModalContent, styles.disqualifiedModalContent]}>
               <Text style={styles.timeUpText}>Player Disqualified!</Text>
-              <Text style={styles.finalScoreText}>Score: 0</Text>
+              <Text style={styles.finalScoreText}>
+                Score: {disqualificationRule === 'zero' ? '0' : score}
+              </Text>
             </Animated.View>
           </View>
         </Modal>
       </View>
-
-      {(isInitialTurnModalVisible || isNextTurnModalVisible) && (
-        <BlurView intensity={100} style={[StyleSheet.absoluteFill, styles.blurOverlay]} />
-      )}
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E9EF',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-  },
-  backButtonText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#2C3E50',
-    fontWeight: '500',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 6,
-  },
-  turnInfo: {
-    backgroundColor: 'white',
-    padding: 4,
-    borderRadius: 12,
-    marginBottom: 4,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  teamName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    marginBottom: 4,
-  },
-  playerName: {
-    fontSize: 16,
-    color: '#34495E',
-  },
-  // Improved Score Layout
-  scoreContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between', // Ensures equal spacing
-    marginBottom: 8,
-  },
-  scoreItem: {
-    flex: 1,
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 12,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  scoreLabel: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  scoreValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-  },
-  // Timer Styling
-  timerContainer: {
-    backgroundColor: 'white',
-    paddingVertical: 10,
-    paddingHorizontal: 2,
-    borderRadius: 12,
-    marginBottom: 12,
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  timer: {
-    fontSize: 24, // Increased for better visibility
-    fontWeight: 'bold',
-    color: '#2C3E50',
-  },
-  timerWarning: {
-    color: '#E74C3C',
-  },
-  // Card Layout Improvements
-  cardWrapper: {
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 2, // Reduced margin for better positioning
-    marginTop: 0.1,
-  },
-  buttonContainer: {
-    width: '100%',
-    paddingBottom: 20, // Ensures spacing on all devices
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  gameButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8, // Ensures uniform spacing
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14, // Adjusted for better touch area
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  correctButton: {
-    backgroundColor: '#2ECC71',
-  },
-  skipButton: {
-    backgroundColor: '#E67E22',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: '#BDC3C7', // Light gray when disabled
-    opacity: 0.6,
-  },
-  buttonTextDisabled: {
-    color: '#7F8C8D', // Darker gray for disabled text
-  },
-  // Modal styles with consistent spacing
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    marginBottom: 20,
-  },
-  hidden: {
-    opacity: 0,
-  },
-  blurOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-  },
-  winnerText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2ECC71',
-    marginBottom: 10,
-  },
-  modalSubtitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#34495E',
-    marginBottom: 10,
-  },
-  playerScore: {
-    fontSize: 16,
-    color: '#34495E',
-    marginBottom: 5,
-  },
-  secondTeam: {
-    marginTop: 16,
-  },
-  teamTotal: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2C3E50',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  disabledButton: {
-    backgroundColor: '#D1D5DB',
-    borderColor: '#9CA3AF',
-  },
-  disabledButtonText: {
-    color: '#6B7280',
-  },
-  timeUpModalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-  },
-  timeUpModalContent: {
-    backgroundColor: '#E74C3C',
-    padding: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 10,
-  },
-  timeUpText: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    marginBottom: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
-  },
-  finalScoreText: {
-    fontSize: 24,
-    color: 'white',
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  modalButton: {
-    backgroundColor: '#2ECC71',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginTop: 24,
-    minWidth: 200,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  disqualifyButton: {
-    backgroundColor: '#E74C3C', // Red color for disqualification
-  },
-  disqualifiedModalContent: {
-    backgroundColor: '#E74C3C',
-  },
-  disqualifiedScore: {
-    color: '#E74C3C',
-    fontStyle: 'italic',
-  },
-  noSkipsLeft: {
-    color: '#E74C3C', // Red color to indicate no skips remaining
-  },
-});

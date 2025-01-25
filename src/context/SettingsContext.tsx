@@ -1,23 +1,29 @@
 import React, { createContext, useContext, useState } from 'react';
 
-interface SettingsContextType {
+interface Settings {
   maxSkips: number;
   setMaxSkips: (count: number) => void;
   roundDuration: number;
   setRoundDuration: (seconds: number) => void;
+  disqualificationRule: 'zero' | 'total';
+  updateSettings: (key: keyof Settings, value: any) => void;
 }
 
-const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+const SettingsContext = createContext<Settings | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [maxSkips, setMaxSkips] = useState(3);
-  const [roundDuration, setRoundDuration] = useState(120); // Default 120 seconds
+  const [settings, setSettings] = useState<Settings>({
+    maxSkips: 3,
+    roundDuration: 60,
+    disqualificationRule: 'zero',
+    setMaxSkips: (count: number) => setSettings((prev) => ({ ...prev, maxSkips: count })),
+    setRoundDuration: (seconds: number) =>
+      setSettings((prev) => ({ ...prev, roundDuration: seconds })),
+    updateSettings: (key: keyof Settings, value: any) =>
+      setSettings((prev) => ({ ...prev, [key]: value })),
+  });
 
-  return (
-    <SettingsContext.Provider value={{ maxSkips, setMaxSkips, roundDuration, setRoundDuration }}>
-      {children}
-    </SettingsContext.Provider>
-  );
+  return <SettingsContext.Provider value={settings}>{children}</SettingsContext.Provider>;
 }
 
 export function useSettings() {
