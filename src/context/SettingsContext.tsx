@@ -14,7 +14,7 @@ const SettingsContext = createContext<Settings | undefined>(undefined);
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>({
     maxSkips: 3,
-    roundDuration: 60,
+    roundDuration: 120,
     disqualificationRule: 'zero',
     setMaxSkips: (count: number) => setSettings((prev) => ({ ...prev, maxSkips: count })),
     setRoundDuration: (seconds: number) =>

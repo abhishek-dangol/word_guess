@@ -17,7 +17,7 @@ const skipOptions = [
 
 const disqualificationOptions = [
   { label: 'Set score to zero', value: 'zero' },
-  { label: 'Set score to total points scored', value: 'total' },
+  { label: 'Set score to total points', value: 'total' },
 ];
 
 const styles = StyleSheet.create({
@@ -79,6 +79,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
     elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownIcon: {
+    color: '#2C3E50',
+    marginLeft: 8,
   },
   buttonContainer: {
     width: '100%',
@@ -192,6 +199,9 @@ export function SettingsScreen() {
             value={selectedSkips}
             onChange={(item) => setSelectedSkips(item.value)}
             placeholder="Select skips"
+            renderRightIcon={() => (
+              <AntDesign name="caretdown" size={12} style={styles.dropdownIcon} />
+            )}
           />
         </View>
 
@@ -217,6 +227,9 @@ export function SettingsScreen() {
             value={selectedDisqualificationRule}
             onChange={(item) => setSelectedDisqualificationRule(item.value)}
             placeholder="Select disqualification rule"
+            renderRightIcon={() => (
+              <AntDesign name="caretdown" size={12} style={styles.dropdownIcon} />
+            )}
           />
         </View>
 
