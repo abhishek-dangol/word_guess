@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   View,
   SafeAreaView,
@@ -15,7 +16,7 @@ import { getRandomCard } from '../lib/cardService';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { CardData } from '../types/game';
 import { supabase } from '../lib/supabase';
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -425,12 +426,39 @@ export function GameScreen() {
   // Add this ref at the top with other refs
   const isProcessingRef = useRef(false);
 
+  // Add these states and refs near your other state declarations
+  const [isCorrectAnimationVisible, setIsCorrectAnimationVisible] = useState(false);
+  const correctAnimationOpacity = useRef(new Animated.Value(0)).current;
+
+  // Add this function near your other animation-related functions
+  const showCorrectAnimation = () => {
+    setIsCorrectAnimationVisible(true);
+    correctAnimationOpacity.setValue(0);
+
+    Animated.sequence([
+      Animated.timing(correctAnimationOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.delay(800),
+      Animated.timing(correctAnimationOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsCorrectAnimationVisible(false);
+    });
+  };
+
   // Update the handleCorrect function
   const handleCorrect = async () => {
     if (isTimerActive && !isProcessingRef.current) {
       try {
         isProcessingRef.current = true;
-        Vibration.vibrate(50); // Short vibration for 50ms
+        Vibration.vibrate(50);
+        showCorrectAnimation();
         setScore((prev) => prev + 1);
         await fetchNewCard();
       } finally {
@@ -439,12 +467,39 @@ export function GameScreen() {
     }
   };
 
-  // Update the handleSkip function
+  // Add new state and ref near the other animation states
+  const [isSkipAnimationVisible, setIsSkipAnimationVisible] = useState(false);
+  const skipAnimationOpacity = useRef(new Animated.Value(0)).current;
+
+  // Add this function near showCorrectAnimation
+  const showSkipAnimation = () => {
+    setIsSkipAnimationVisible(true);
+    skipAnimationOpacity.setValue(0);
+
+    Animated.sequence([
+      Animated.timing(skipAnimationOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.delay(800),
+      Animated.timing(skipAnimationOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsSkipAnimationVisible(false);
+    });
+  };
+
+  // Update handleSkip function
   const handleSkip = async () => {
     if (isTimerActive && skips < maxSkips && !isProcessingRef.current) {
       try {
         isProcessingRef.current = true;
-        Vibration.vibrate(100); // Slightly longer vibration for 100ms
+        Vibration.vibrate(100);
+        showSkipAnimation();
         setSkips((prev) => prev + 1);
         await fetchNewCard();
       } finally {
@@ -598,8 +653,9 @@ export function GameScreen() {
     // Card Layout Improvements
     cardWrapper: {
       width: '100%',
+      height: 280, // Fixed height for the card container
       alignItems: 'center',
-      marginBottom: 2, // Reduced margin for better positioning
+      marginBottom: 80,
       marginTop: 0.1,
     },
     buttonContainer: {
@@ -774,6 +830,54 @@ export function GameScreen() {
     },
     noSkipsLeft: {
       color: '#E74C3C', // Red color to indicate no skips remaining
+    },
+    correctAnimationOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      zIndex: 1000,
+    },
+    correctAnimationContent: {
+      backgroundColor: '#2ECC71',
+      padding: 20,
+      borderRadius: 15,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    correctAnimationText: {
+      color: 'white',
+      fontSize: 24,
+      fontWeight: 'bold',
+    },
+    skipAnimationOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      zIndex: 1000,
+    },
+    skipAnimationContent: {
+      backgroundColor: '#E67E22',
+      padding: 20,
+      borderRadius: 15,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    skipAnimationText: {
+      color: 'white',
+      fontSize: 24,
+      fontWeight: 'bold',
     },
   });
 
@@ -1043,6 +1147,28 @@ export function GameScreen() {
             </Animated.View>
           </View>
         </Modal>
+
+        {/* Correct Animation */}
+        {isCorrectAnimationVisible && (
+          <Animated.View
+            style={[styles.correctAnimationOverlay, { opacity: correctAnimationOpacity }]}
+          >
+            <View style={styles.correctAnimationContent}>
+              <FontAwesome name="thumbs-up" size={30} color="white" />
+              <Text style={styles.correctAnimationText}>Correct!</Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Skip Animation */}
+        {isSkipAnimationVisible && (
+          <Animated.View style={[styles.skipAnimationOverlay, { opacity: skipAnimationOpacity }]}>
+            <View style={styles.skipAnimationContent}>
+              <FontAwesome name="forward" size={30} color="white" />
+              <Text style={styles.skipAnimationText}>Skipped!</Text>
+            </View>
+          </Animated.View>
+        )}
       </View>
     </SafeAreaView>
   );
