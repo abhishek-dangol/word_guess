@@ -107,7 +107,7 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => navigation.navigate('TeamSetupScreen')}>
+        <Pressable style={styles.backButton} onPress={() => navigation.navigate('SetSetupScreen', { teamSettings, gameSettings })}>
           <AntDesign name="arrowleft" size={24} color="#2C3E50" />
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
