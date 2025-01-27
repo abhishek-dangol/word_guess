@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, FlatList } from 'react-native';
 import { Button } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -7,6 +7,9 @@ import { RootStackParamList } from '../types/navigation';
 import { supabase } from '../lib/supabase';
 import { AntDesign } from '@expo/vector-icons';
 import { getLastGameSession } from '../services/gameSessionService';
+import { Image } from 'expo-image';
+import { CATEGORY_IMAGES, DEFAULT_IMAGE, CategoryImageKeys } from '../assets/categoryImages';
+import type { CategoryImageKeys as ImportedCategoryImageKeys } from '../assets/categoryImages';
 
 type CategorySetupScreenProps = {
   navigation: NativeStackNavigationProp<
@@ -107,7 +110,10 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => navigation.navigate('SetSetupScreen', { teamSettings, gameSettings })}>
+        <Pressable 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
           <AntDesign name="arrowleft" size={24} color="#2C3E50" />
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
@@ -115,30 +121,35 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
 
       <Text style={styles.instructions}>Select 2-10 categories for your game:</Text>
 
-      <ScrollView style={styles.categoriesList}>
-        {categories.map((category) => (
+      <FlatList
+        data={categories}
+        keyExtractor={(item) => item}
+        numColumns={3}
+        contentContainerStyle={styles.categoriesGrid}
+        renderItem={({ item }) => (
           <Pressable
-            key={category}
             style={[
               styles.categoryItem,
-              selectedCategories.includes(category) && styles.selectedCategory,
-              !validCategories.includes(category) && styles.disabledCategory,
+              selectedCategories.includes(item) && styles.selectedCategory,
+              !validCategories.includes(item) && styles.disabledCategory,
             ]}
-            onPress={() => toggleCategory(category)}
+            onPress={() => toggleCategory(item)}
           >
-            <Text
-              style={[
-                styles.categoryText,
-                selectedCategories.includes(category) && styles.selectedCategoryText,
-                !validCategories.includes(category) && styles.disabledCategoryText,
-              ]}
+            <Image
+              source={CATEGORY_IMAGES[item as CategoryImageKeys] || DEFAULT_IMAGE}
+              style={styles.categoryImage}
+              contentFit="cover"
             >
-              {category}
-              {!validCategories.includes(category) && ' (Not available in this set)'}
-            </Text>
+              <View style={styles.categoryOverlay}>
+                <Text style={styles.categoryText}>
+                  {item}
+                  {!validCategories.includes(item) && '\n(Unavailable)'}
+                </Text>
+              </View>
+            </Image>
           </Pressable>
-        ))}
-      </ScrollView>
+        )}
+      />
 
       <View style={styles.bottomContainer}>
         <Text style={styles.selectionCount}>Total Categories Selected: {selectedCategories.length}/10</Text>
@@ -178,14 +189,20 @@ const styles = StyleSheet.create({
     marginVertical: 20,
     paddingHorizontal: 16,
   },
-  categoriesList: {
-    flex: 1,
-    padding: 16,
+  categoriesGrid: {
+    padding: 8,
+    gap: 8,
   },
   categoryItem: {
-    padding: 16,
+    flex: 1,
+    minWidth: '30%',
+    maxWidth: '32%',
+    aspectRatio: 1,
+    margin: 4,
+    padding: 8,
     borderRadius: 8,
-    marginBottom: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#F8F9FA',
     borderWidth: 1,
     borderColor: '#E9ECEF',
@@ -195,8 +212,12 @@ const styles = StyleSheet.create({
     borderColor: '#27AE60',
   },
   categoryText: {
-    fontSize: 16,
-    color: '#2C3E50',
+    fontSize: 14,
+    textAlign: 'center',
+    color: 'white',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   selectedCategoryText: {
     color: '#FFFFFF',
@@ -224,5 +245,19 @@ const styles = StyleSheet.create({
   disabledCategoryText: {
     color: '#6C757D',
     fontStyle: 'italic',
+  },
+  categoryImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  categoryOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    padding: 8,
   },
 });

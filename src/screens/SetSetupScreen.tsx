@@ -50,7 +50,10 @@ export function SetSetupScreen({ navigation, route }: SetSetupScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+        <Pressable 
+          style={styles.backButton} 
+          onPress={() => navigation.navigate('TeamSetupScreen')}
+        >
           <AntDesign name="arrowleft" size={24} color="#2C3E50" />
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>

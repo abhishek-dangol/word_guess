@@ -41,7 +41,7 @@ interface AvailablePlayers {
   team2: boolean[];
 }
 
-export function GameScreen() {
+export const GameScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Game'>>();
   const { gameSettings } = route.params;
@@ -102,10 +102,22 @@ export function GameScreen() {
     return currentTeam === 1 ? 2 : 1;
   }, []);
 
-  // Function to fetch new card
+  // Add this state at the top with other states
+  const [isGameActive, setIsGameActive] = useState(true);
+
+  // Add this to track cleanup
+  const isMounted = useRef(true);
+
+  // Modify the fetchNewCard useCallback to check game state
   const fetchNewCard = useCallback(async () => {
+    console.log('Game Active Status:', isGameActive);
+    if (!isGameActive || !isMounted.current) {
+      console.log('Game ended or component unmounted - skipping card fetch');
+      return;
+    }
     console.log('Fetching new card...');
     try {
+      console.log('Making API call to supabase...');
       // Log the query parameters for debugging
       console.log('Query params:', {
         categories: selectedCategories,
@@ -152,12 +164,23 @@ export function GameScreen() {
     } catch (error) {
       console.error('Error fetching card:', error);
     }
-  }, [selectedCategories, gameSettings.selectedSet]);
+  }, [selectedCategories, gameSettings.selectedSet, isGameActive]);
 
   // Add useEffect to fetch initial card
   useEffect(() => {
     fetchNewCard();
   }, [fetchNewCard]);
+
+  // Modify the cleanup effect
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      setIsGameActive(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
   // Initialize game state function
   const initializeGame = useCallback(() => {
@@ -254,54 +277,12 @@ export function GameScreen() {
 
     // If this was the last turn
     if (turnCount + 1 >= totalPlayers) {
-      const finalTeam1Total = playerScores.team1
-        .map((score, index) => (disqualifiedPlayers.team1[index] ? 0 : score))
-        .reduce((acc, score) => acc + score, 0);
-
-      const finalTeam2Total = playerScores.team2
-        .map((score, index) => (disqualifiedPlayers.team2[index] ? 0 : score))
-        .reduce((acc, score) => acc + score, 0);
-
-      // Save game session
-      const gameSession: GameSession = {
-        timestamp: Date.now(),
-        teamSettings: {
-          team1Name: teamSettings.team1Name,
-          team1Players: teamSettings.team1Players,
-          team2Name: teamSettings.team2Name,
-          team2Players: teamSettings.team2Players,
-        },
-        gameSettings: {
-          selectedCategories,
-          selectedSet: gameSettings.selectedSet,
-        },
-        settings: {
-          maxSkips,
-          roundDuration,
-        },
-      };
-
-      saveGameSession(gameSession);
-
-      // Determine winner with simplified logic
-      if (
-        disqualifiedPlayers.team1.every((isDisqualified) => isDisqualified) &&
-        disqualifiedPlayers.team2.every((isDisqualified) => isDisqualified)
-      ) {
-        setWinningTeam("It's a tie! All players were disqualified");
-      } else if (disqualifiedPlayers.team1.every((isDisqualified) => isDisqualified)) {
-        setWinningTeam(teamSettings.team2Name);
-      } else if (disqualifiedPlayers.team2.every((isDisqualified) => isDisqualified)) {
-        setWinningTeam(teamSettings.team1Name);
-      } else if (finalTeam1Total > finalTeam2Total) {
-        setWinningTeam(teamSettings.team1Name);
-      } else if (finalTeam2Total > finalTeam1Total) {
-        setWinningTeam(teamSettings.team2Name);
-      } else {
-        setWinningTeam("It's a tie!");
+      setIsGameActive(false); // Stop the game
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
-
       setIsWinnerModalVisible(true);
+      return; // Don't proceed with next turn setup
     }
 
     // Reset states
@@ -556,6 +537,16 @@ export function GameScreen() {
     setSkips(0);
     fetchNewCard();
   }, [nextTurn, fetchNewCard]);
+
+  // Modify the back button handler
+  const handleEndGame = useCallback(() => {
+    setIsGameActive(false);
+    isMounted.current = false;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    navigation.navigate('Home');
+  }, [navigation]);
 
   const styles = StyleSheet.create({
     container: {
@@ -884,9 +875,12 @@ export function GameScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => navigation.navigate('Home')}>
+        <Pressable 
+          style={styles.backButton} 
+          onPress={handleEndGame}
+        >
           <AntDesign name="arrowleft" size={24} color="#2C3E50" />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>End Game</Text>
         </Pressable>
       </View>
 
@@ -1116,6 +1110,11 @@ export function GameScreen() {
               <Pressable
                 style={styles.modalButton}
                 onPress={() => {
+                  setIsGameActive(false);
+                  isMounted.current = false;
+                  if (timerRef.current) {
+                    clearInterval(timerRef.current);
+                  }
                   setIsWinnerModalVisible(false);
                   navigation.navigate('Home');
                 }}
