@@ -19,10 +19,12 @@ type CategorySetupScreenProps = {
 export function CategorySetupScreen({ navigation, route }: CategorySetupScreenProps) {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const { teamSettings } = route.params;
+  const [validCategories, setValidCategories] = useState<string[]>([]);
+  const { teamSettings, gameSettings } = route.params;
 
   useEffect(() => {
     fetchCategories();
+    fetchValidCategoriesForSet();
   }, []);
 
   useEffect(() => {
@@ -48,7 +50,30 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
     setCategories(uniqueCategories);
   };
 
-  const toggleCategory = (category: string) => {
+  const fetchValidCategoriesForSet = async () => {
+    const { data, error } = await supabase
+      .from('carddata')
+      .select('category')
+      .eq('set', gameSettings.selectedSet);
+
+    if (error) {
+      console.error('Error fetching valid categories:', error);
+      return;
+    }
+
+    const validCats = [...new Set(data.map((item: { category: string }) => item.category))];
+    setValidCategories(validCats);
+  };
+
+  const toggleCategory = async (category: string) => {
+    if (!validCategories.includes(category)) {
+      Alert.alert(
+        'Category Not Available',
+        `The category "${category}" is not available in ${gameSettings.selectedSet}. Please select a different category.`
+      );
+      return;
+    }
+
     setSelectedCategories((prev) => {
       if (prev.includes(category)) {
         return prev.filter((c) => c !== category);
@@ -97,6 +122,7 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
             style={[
               styles.categoryItem,
               selectedCategories.includes(category) && styles.selectedCategory,
+              !validCategories.includes(category) && styles.disabledCategory,
             ]}
             onPress={() => toggleCategory(category)}
           >
@@ -104,9 +130,11 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
               style={[
                 styles.categoryText,
                 selectedCategories.includes(category) && styles.selectedCategoryText,
+                !validCategories.includes(category) && styles.disabledCategoryText,
               ]}
             >
               {category}
+              {!validCategories.includes(category) && ' (Not available in this set)'}
             </Text>
           </Pressable>
         ))}
@@ -187,5 +215,14 @@ const styles = StyleSheet.create({
   },
   startButton: {
     padding: 8,
+  },
+  disabledCategory: {
+    backgroundColor: '#E9ECEF',
+    borderColor: '#DEE2E6',
+    opacity: 0.7,
+  },
+  disabledCategoryText: {
+    color: '#6C757D',
+    fontStyle: 'italic',
   },
 });
