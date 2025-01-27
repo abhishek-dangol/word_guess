@@ -35,14 +35,14 @@ export function AppNavigator() {
             options={{ title: 'Team Setup' }}
           />
           <Stack.Screen
-            name="CategorySetup"
-            component={CategorySetupScreen}
-            options={{ title: 'Select Categories' }}
-          />
-          <Stack.Screen
             name="SetSetupScreen"
             component={SetSetupScreen}
-            options={{ title: 'Select Set' }}
+            options={{ title: 'Set Selection' }}
+          />
+          <Stack.Screen
+            name="CategorySetupScreen"
+            component={CategorySetupScreen}
+            options={{ title: 'Select Categories' }}
           />
           <Stack.Screen name="Game" component={GameScreen} options={{ title: 'Game' }} />
           <Stack.Screen

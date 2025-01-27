@@ -79,11 +79,14 @@ const TeamSetupScreen: React.FC<TeamSetupScreenProps> = ({ navigation }) => {
       return;
     }
 
-    navigation.navigate('CategorySetup', {
+    navigation.navigate('SetSetupScreen', {
       teamSettings: {
         ...teamSettings,
         team1Players,
         team2Players,
+      },
+      gameSettings: {
+        selectedCategories: [],
       },
     });
   };
@@ -188,7 +191,7 @@ const TeamSetupScreen: React.FC<TeamSetupScreenProps> = ({ navigation }) => {
 
         <View style={styles.bottomContainer}>
           <Button mode="contained" onPress={handleStartGame} style={styles.startButton}>
-            Next Step: Select Categories
+            Next Step: Select Set of Cards
           </Button>
         </View>
       </View>

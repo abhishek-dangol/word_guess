@@ -38,7 +38,8 @@ export function SetSetupScreen({ navigation, route }: SetSetupScreenProps) {
       return;
     }
 
-    navigation.navigate('Game', {
+    navigation.navigate('CategorySetupScreen', {
+      teamSettings: route.params.teamSettings,
       gameSettings: {
         ...gameSettings,
         selectedSet,
@@ -73,7 +74,7 @@ export function SetSetupScreen({ navigation, route }: SetSetupScreenProps) {
 
       <View style={styles.bottomContainer}>
         <Button mode="contained" onPress={handleStartGame} style={styles.startButton}>
-          Start Game
+          Next Step: Select Categories
         </Button>
       </View>
     </View>
@@ -133,7 +134,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   bottomContainer: {
-    padding: 16,
+    padding: 40,
     marginTop: 'auto',
   },
   startButton: {

@@ -15,15 +15,28 @@ import type { TeamSettings, GameSettings } from './game';
 export type RootStackParamList = {
   Home: undefined;
   TeamSetupScreen: undefined;
-  CategorySetup: {
+  CategorySetupScreen: {
     teamSettings: TeamSettings;
+    gameSettings: {
+      selectedSet: string;
+      selectedCategories: string[];
+    };
   };
   Game: {
     gameSettings: GameSettings;
   };
   Settings: undefined;
   SetSetupScreen: {
-    gameSettings: { teamSettings: TeamSettings; selectedCategories: string[] };
+    teamSettings: {
+      team1Name: string;
+      team2Name: string;
+      team1Players: string[];
+      team2Players: string[];
+      playersPerTeam: number;
+    };
+    gameSettings: {
+      selectedCategories: string[];
+    };
   };
 };
 

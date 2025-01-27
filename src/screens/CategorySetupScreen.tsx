@@ -11,9 +11,9 @@ import { getLastGameSession } from '../services/gameSessionService';
 type CategorySetupScreenProps = {
   navigation: NativeStackNavigationProp<
     RootStackParamList,
-    'CategorySetup' | 'TeamSetupScreen' | 'SetSetupScreen'
+    'CategorySetupScreen' | 'TeamSetupScreen' | 'SetSetupScreen'
   >;
-  route: RouteProp<RootStackParamList, 'CategorySetup'>;
+  route: RouteProp<RootStackParamList, 'CategorySetupScreen'>;
 };
 
 export function CategorySetupScreen({ navigation, route }: CategorySetupScreenProps) {
@@ -70,9 +70,10 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
       return;
     }
 
-    navigation.navigate('SetSetupScreen', {
+    navigation.navigate('Game', {
       gameSettings: {
-        teamSettings,
+        teamSettings: route.params.teamSettings,
+        selectedSet: route.params.gameSettings.selectedSet,
         selectedCategories,
       },
     });
@@ -112,9 +113,9 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
       </ScrollView>
 
       <View style={styles.bottomContainer}>
-        <Text style={styles.selectionCount}>Selected: {selectedCategories.length}/10</Text>
+        <Text style={styles.selectionCount}>Total Categories Selected: {selectedCategories.length}/10</Text>
         <Button mode="contained" onPress={handleStartGame} style={styles.startButton}>
-          Next Step: Select Set
+          Start Game
         </Button>
       </View>
     </View>
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   bottomContainer: {
-    padding: 16,
+    padding:40,
     borderTopWidth: 1,
     borderTopColor: '#ECF0F1',
   },
