@@ -135,18 +135,25 @@ export function CategorySetupScreen({ navigation, route }: CategorySetupScreenPr
             ]}
             onPress={() => toggleCategory(item)}
           >
-            <Image
-              source={CATEGORY_IMAGES[item as CategoryImageKeys] || DEFAULT_IMAGE}
-              style={styles.categoryImage}
-              contentFit="cover"
-            >
-              <View style={styles.categoryOverlay}>
-                <Text style={styles.categoryText}>
+            <View style={styles.categoryWrapper}>
+              <Image
+                source={CATEGORY_IMAGES[item as CategoryImageKeys] || DEFAULT_IMAGE}
+                style={styles.categoryImage}
+                contentFit="cover"
+              />
+              <View style={styles.textOverlay}>
+                <Text style={[
+                  styles.categoryLabel,
+                  selectedCategories.includes(item) && styles.selectedCategoryText,
+                  !validCategories.includes(item) && styles.disabledCategoryText,
+                ]}>
                   {item}
-                  {!validCategories.includes(item) && '\n(Unavailable)'}
                 </Text>
+                {!validCategories.includes(item) && (
+                  <Text style={styles.unavailableText}>(Unavailable)</Text>
+                )}
               </View>
-            </Image>
+            </View>
           </Pressable>
         )}
       />
@@ -199,17 +206,16 @@ const styles = StyleSheet.create({
     maxWidth: '32%',
     aspectRatio: 1,
     margin: 4,
-    padding: 8,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 12,
     backgroundColor: '#F8F9FA',
     borderWidth: 1,
     borderColor: '#E9ECEF',
+    overflow: 'hidden',
   },
   selectedCategory: {
-    backgroundColor: '#2ECC71',
-    borderColor: '#27AE60',
+    borderWidth:10,
+    borderColor: '#2ECC71',
+    borderRadius: 16,
   },
   categoryText: {
     fontSize: 14,
@@ -246,18 +252,35 @@ const styles = StyleSheet.create({
     color: '#6C757D',
     fontStyle: 'italic',
   },
-  categoryImage: {
+  categoryWrapper: {
     flex: 1,
+    position: 'relative',
+  },
+  categoryImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 8,
+    borderRadius: 6,
   },
-  categoryOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-    padding: 8,
+  textOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 4,
+    borderBottomLeftRadius: 6,
+    borderBottomRightRadius: 6,
   },
+  categoryLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+    color: 'white',
+    fontWeight: '500',
+  },
+  unavailableText: {
+    fontSize: 10,
+    color: '#E9ECEF',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  }
 });
