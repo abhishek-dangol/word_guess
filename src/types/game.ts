@@ -37,3 +37,10 @@ export interface GameSession {
     roundDuration: number;
   };
 }
+
+export interface PlayerTurn {
+  teamNumber: 1 | 2;
+  playerIndex: number;
+  playerName: string;
+  teamName: string;
+}

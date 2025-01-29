@@ -17,7 +17,7 @@ export default function App() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="TeamSetupScreen" component={TeamSetupScreen} />
-          <Stack.Screen name="CategorySetup" component={CategorySetupScreen} />
+          <Stack.Screen name="CategorySetupScreen" component={CategorySetupScreen} />
           <Stack.Screen name="SetSetupScreen" component={SetSetupScreen} />
           <Stack.Screen name="Game" component={GameScreen} />
         </Stack.Navigator>

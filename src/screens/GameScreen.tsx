@@ -14,7 +14,7 @@ import {
 import { WordCard } from '../components/WordCard';
 import { getRandomCard } from '../lib/cardService';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { CardData } from '../types/game';
+import type { CardData, PlayerTurn } from '../types/game';
 import { supabase } from '../lib/supabase';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -26,14 +26,10 @@ import { useSettings } from '../context/SettingsContext';
 import { saveGameSession } from '../services/gameSessionService';
 import type { GameSession } from '../types/game';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// Interface for tracking player turns
-interface PlayerTurn {
-  teamNumber: 1 | 2;
-  playerIndex: number;
-  playerName: string;
-  teamName: string;
-}
+import { TurnModal } from '../components/modals/TurnModal';
+import { GameSummaryModal } from '../components/modals/GameSummaryModal';
+import { TimeUpModal } from '../components/modals/TimeUpModal';
+import { DisqualificationModal } from '../components/modals/DisqualificationModal';
 
 // Interface for tracking available players
 interface AvailablePlayers {
@@ -548,337 +544,10 @@ export const GameScreen: React.FC = () => {
     navigation.navigate('Home');
   }, [navigation]);
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#F8F9FA',
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: '#E5E9EF',
-    },
-    backButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 8,
-    },
-    backButtonText: {
-      marginLeft: 8,
-      fontSize: 16,
-      color: '#2C3E50',
-      fontWeight: '500',
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: 16,
-      paddingTop: 6,
-    },
-    turnInfo: {
-      backgroundColor: 'white',
-      padding: 4,
-      borderRadius: 12,
-      marginBottom: 4,
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    teamName: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: '#2C3E50',
-      marginBottom: 4,
-    },
-    playerName: {
-      fontSize: 16,
-      color: '#34495E',
-    },
-    // Improved Score Layout
-    scoreContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between', // Ensures equal spacing
-      marginBottom: 8,
-    },
-    scoreItem: {
-      flex: 1,
-      backgroundColor: 'white',
-      padding: 12,
-      borderRadius: 12,
-      marginHorizontal: 4,
-      alignItems: 'center',
-    },
-    scoreLabel: {
-      fontSize: 16,
-      color: '#666',
-      marginBottom: 8,
-      fontWeight: '500',
-    },
-    scoreValue: {
-      fontSize: 28,
-      fontWeight: 'bold',
-      color: '#2C3E50',
-    },
-    // Timer Styling
-    timerContainer: {
-      backgroundColor: 'white',
-      paddingVertical: 10,
-      paddingHorizontal: 2,
-      borderRadius: 12,
-      marginBottom: 12,
-      marginTop: 8,
-      alignItems: 'center',
-    },
-    timer: {
-      fontSize: 24, // Increased for better visibility
-      fontWeight: 'bold',
-      color: '#2C3E50',
-    },
-    timerWarning: {
-      color: '#E74C3C',
-    },
-    // Card Layout Improvements
-    cardWrapper: {
-      width: '100%',
-      height: 280, // Fixed height for the card container
-      alignItems: 'center',
-      marginBottom: 80,
-      marginTop: 0.1,
-    },
-    buttonContainer: {
-      width: '100%',
-      paddingBottom: 20, // Ensures spacing on all devices
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    gameButtons: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: 8, // Ensures uniform spacing
-    },
-    button: {
-      flex: 1,
-      paddingVertical: 14, // Adjusted for better touch area
-      borderRadius: 10,
-      alignItems: 'center',
-    },
-    correctButton: {
-      backgroundColor: '#2ECC71',
-    },
-    skipButton: {
-      backgroundColor: '#E67E22',
-    },
-    buttonText: {
-      color: 'white',
-      fontSize: 16,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    buttonDisabled: {
-      backgroundColor: '#BDC3C7', // Light gray when disabled
-      opacity: 0.6,
-    },
-    buttonTextDisabled: {
-      color: '#7F8C8D', // Darker gray for disabled text
-    },
-    // Modal styles with consistent spacing
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 20,
-    },
-    modalContent: {
-      backgroundColor: 'white',
-      borderRadius: 16,
-      padding: 24,
-      width: '90%',
-      maxWidth: 400,
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 5,
-    },
-    modalTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#2C3E50',
-      marginBottom: 20,
-    },
-    hidden: {
-      opacity: 0,
-    },
-    blurOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    },
-    winnerText: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: '#2ECC71',
-      marginBottom: 10,
-    },
-    modalSubtitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: '#34495E',
-      marginBottom: 10,
-    },
-    playerScore: {
-      fontSize: 16,
-      color: '#34495E',
-      marginBottom: 5,
-    },
-    secondTeam: {
-      marginTop: 16,
-    },
-    teamTotal: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: '#2C3E50',
-      marginTop: 8,
-      marginBottom: 8,
-    },
-    disabledButton: {
-      backgroundColor: '#D1D5DB',
-      borderColor: '#9CA3AF',
-    },
-    disabledButtonText: {
-      color: '#6B7280',
-    },
-    timeUpModalOverlay: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    },
-    timeUpModalContent: {
-      backgroundColor: '#E74C3C',
-      padding: 40,
-      borderRadius: 20,
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
-      shadowOpacity: 0.3,
-      shadowRadius: 6,
-      elevation: 10,
-    },
-    timeUpText: {
-      fontSize: 48,
-      fontWeight: 'bold',
-      color: 'white',
-      textAlign: 'center',
-      marginBottom: 16,
-      textShadowColor: 'rgba(0, 0, 0, 0.3)',
-      textShadowOffset: { width: 2, height: 2 },
-      textShadowRadius: 4,
-    },
-    finalScoreText: {
-      fontSize: 24,
-      color: 'white',
-      textAlign: 'center',
-      fontWeight: '600',
-    },
-    modalButton: {
-      backgroundColor: '#2ECC71',
-      paddingHorizontal: 32,
-      paddingVertical: 16,
-      borderRadius: 12,
-      marginTop: 24,
-      minWidth: 200,
-      alignItems: 'center',
-    },
-    modalButtonText: {
-      color: 'white',
-      fontSize: 18,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    disqualifyButton: {
-      backgroundColor: '#E74C3C', // Red color for disqualification
-    },
-    disqualifiedModalContent: {
-      backgroundColor: '#E74C3C',
-    },
-    disqualifiedScore: {
-      color: '#E74C3C',
-      fontStyle: 'italic',
-    },
-    noSkipsLeft: {
-      color: '#E74C3C', // Red color to indicate no skips remaining
-    },
-    correctAnimationOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.3)',
-      zIndex: 1000,
-    },
-    correctAnimationContent: {
-      backgroundColor: '#2ECC71',
-      padding: 20,
-      borderRadius: 15,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    correctAnimationText: {
-      color: 'white',
-      fontSize: 24,
-      fontWeight: 'bold',
-    },
-    skipAnimationOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.3)',
-      zIndex: 1000,
-    },
-    skipAnimationContent: {
-      backgroundColor: '#E67E22',
-      padding: 20,
-      borderRadius: 15,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    skipAnimationText: {
-      color: 'white',
-      fontSize: 24,
-      fontWeight: 'bold',
-    },
-  });
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Pressable 
-          style={styles.backButton} 
-          onPress={handleEndGame}
-        >
+        <Pressable style={styles.backButton} onPress={handleEndGame}>
           <AntDesign name="arrowleft" size={24} color="#2C3E50" />
           <Text style={styles.backButtonText}>End Game</Text>
         </Pressable>
@@ -979,173 +648,48 @@ export const GameScreen: React.FC = () => {
         </View>
 
         {/* Initial Turn Modal */}
-        <Modal visible={isInitialTurnModalVisible} animationType="slide" transparent={true}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>First Turn</Text>
-              {currentTurn && (
-                <>
-                  <Text style={styles.teamName}>Team: {currentTurn.teamName}</Text>
-                  <Text style={styles.teamName}>
-                    Player {currentTurn.playerIndex + 1}: {currentTurn.playerName}
-                  </Text>
-                </>
-              )}
-              <Pressable style={styles.modalButton} onPress={handleStartFirstTurn}>
-                <Text style={styles.modalButtonText}>Start Game</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
+        <TurnModal
+          isInitialTurn={true}
+          isVisible={isInitialTurnModalVisible}
+          turnInfo={currentTurn}
+          onStart={handleStartFirstTurn}
+        />
 
         {/* Next Turn Modal */}
-        <Modal visible={isNextTurnModalVisible} animationType="slide" transparent={true}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Next Turn</Text>
-              {nextTurn && (
-                <>
-                  <Text style={styles.teamName}>Team: {nextTurn.teamName}</Text>
-                  <Text style={styles.teamName}>
-                    Player {nextTurn.playerIndex + 1}: {nextTurn.playerName}
-                  </Text>
-                </>
-              )}
-              <Pressable style={styles.modalButton} onPress={handleStartNextTurn}>
-                <Text style={styles.modalButtonText}>Start Turn</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
+        <TurnModal
+          isInitialTurn={false}
+          isVisible={isNextTurnModalVisible}
+          turnInfo={nextTurn}
+          onStart={handleStartNextTurn}
+        />
 
-        {/* Winner Modal */}
-        <Modal visible={isWinnerModalVisible} animationType="slide" transparent={true}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Game Over</Text>
-              <Text style={styles.winnerText}>
-                {(() => {
-                  const team1Total = playerScores.team1
-                    .map((score, index) =>
-                      disqualifiedPlayers.team1[index] && disqualificationRule === 'zero'
-                        ? 0
-                        : score,
-                    )
-                    .reduce((acc, score) => acc + score, 0);
-                  const team2Total = playerScores.team2
-                    .map((score, index) =>
-                      disqualifiedPlayers.team2[index] && disqualificationRule === 'zero'
-                        ? 0
-                        : score,
-                    )
-                    .reduce((acc, score) => acc + score, 0);
-
-                  if (team1Total === 0 && team2Total === 0) {
-                    return "Winner: It's a tie!";
-                  } else if (team1Total > team2Total) {
-                    return `Winner: ${teamSettings.team1Name}`;
-                  } else if (team2Total > team1Total) {
-                    return `Winner: ${teamSettings.team2Name}`;
-                  } else {
-                    return "Winner: It's a tie!";
-                  }
-                })()}
-              </Text>
-              <Text style={styles.modalSubtitle}>Summary</Text>
-              <View>
-                <Text style={styles.teamName}>{teamSettings.team1Name}</Text>
-                {teamSettings.team1Players.map((player, index) => (
-                  <Text
-                    key={index}
-                    style={[
-                      styles.playerScore,
-                      disqualifiedPlayers.team1[index] && styles.disqualifiedScore,
-                    ]}
-                  >
-                    Player {index + 1}: {player} -{' '}
-                    {disqualifiedPlayers.team1[index]
-                      ? `Disqualified (${disqualificationRule === 'zero' ? '0' : playerScores.team1[index]} points)`
-                      : `${playerScores.team1[index]} points`}
-                  </Text>
-                ))}
-                <Text style={styles.teamTotal}>
-                  Team Total:{' '}
-                  {playerScores.team1
-                    .map((score, index) =>
-                      disqualifiedPlayers.team1[index] && disqualificationRule === 'zero'
-                        ? 0
-                        : score,
-                    )
-                    .reduce((acc, score) => acc + score, 0)}{' '}
-                  points
-                </Text>
-
-                <Text style={[styles.teamName, styles.secondTeam]}>{teamSettings.team2Name}</Text>
-                {teamSettings.team2Players.map((player, index) => (
-                  <Text
-                    key={index}
-                    style={[
-                      styles.playerScore,
-                      disqualifiedPlayers.team2[index] && styles.disqualifiedScore,
-                    ]}
-                  >
-                    Player {index + 1}: {player} -{' '}
-                    {disqualifiedPlayers.team2[index]
-                      ? `Disqualified (${disqualificationRule === 'zero' ? '0' : playerScores.team2[index]} points)`
-                      : `${playerScores.team2[index]} points`}
-                  </Text>
-                ))}
-                <Text style={styles.teamTotal}>
-                  Team Total:{' '}
-                  {playerScores.team2
-                    .map((score, index) =>
-                      disqualifiedPlayers.team2[index] && disqualificationRule === 'zero'
-                        ? 0
-                        : score,
-                    )
-                    .reduce((acc, score) => acc + score, 0)}{' '}
-                  points
-                </Text>
-              </View>
-              <Pressable
-                style={styles.modalButton}
-                onPress={() => {
-                  setIsGameActive(false);
-                  isMounted.current = false;
-                  if (timerRef.current) {
-                    clearInterval(timerRef.current);
-                  }
-                  setIsWinnerModalVisible(false);
-                  navigation.navigate('Home');
-                }}
-              >
-                <Text style={styles.modalButtonText}>Back to Home</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
+        {/* Game Summary Modal */}
+        <GameSummaryModal
+          isVisible={isWinnerModalVisible}
+          teamSettings={teamSettings}
+          playerScores={playerScores}
+          disqualifiedPlayers={disqualifiedPlayers}
+          disqualificationRule={disqualificationRule}
+          onBackToHome={() => {
+            setIsGameActive(false);
+            isMounted.current = false;
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+            }
+            setIsWinnerModalVisible(false);
+            navigation.navigate('Home');
+          }}
+        />
 
         {/* Time's Up Modal */}
-        <Modal visible={isTimeUpModalVisible} transparent={true}>
-          <View style={styles.timeUpModalOverlay}>
-            <Animated.View style={styles.timeUpModalContent}>
-              <Text style={styles.timeUpText}>Time's Up!</Text>
-              <Text style={styles.finalScoreText}>Final Score: {score}</Text>
-            </Animated.View>
-          </View>
-        </Modal>
+        <TimeUpModal isVisible={isTimeUpModalVisible} finalScore={score} />
 
         {/* Disqualification Modal */}
-        <Modal visible={isDisqualifiedModalVisible} transparent={true}>
-          <View style={styles.timeUpModalOverlay}>
-            <Animated.View style={[styles.timeUpModalContent, styles.disqualifiedModalContent]}>
-              <Text style={styles.timeUpText}>Player Disqualified!</Text>
-              <Text style={styles.finalScoreText}>
-                Score: {disqualificationRule === 'zero' ? '0' : score}
-              </Text>
-            </Animated.View>
-          </View>
-        </Modal>
+        <DisqualificationModal
+          isVisible={isDisqualifiedModalVisible}
+          score={score}
+          disqualificationRule={disqualificationRule}
+        />
 
         {/* Correct Animation */}
         {isCorrectAnimationVisible && (
@@ -1171,4 +715,266 @@ export const GameScreen: React.FC = () => {
       </View>
     </SafeAreaView>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+  },
+  backButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#2C3E50',
+    fontWeight: '500',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+  },
+  turnInfo: {
+    backgroundColor: 'white',
+    padding: 4,
+    borderRadius: 12,
+    marginBottom: 4,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  teamName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  playerName: {
+    fontSize: 16,
+    color: '#34495E',
+  },
+  // Improved Score Layout
+  scoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between', // Ensures equal spacing
+    marginBottom: 8,
+  },
+  scoreItem: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  scoreLabel: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  scoreValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  // Timer Styling
+  timerContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 10,
+    paddingHorizontal: 2,
+    borderRadius: 12,
+    marginBottom: 12,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  timer: {
+    fontSize: 24, // Increased for better visibility
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  timerWarning: {
+    color: '#E74C3C',
+  },
+  // Card Layout Improvements
+  cardWrapper: {
+    width: '100%',
+    height: 280, // Fixed height for the card container
+    alignItems: 'center',
+    marginBottom: 80,
+    marginTop: 0.1,
+  },
+  buttonContainer: {
+    width: '100%',
+    paddingBottom: 20, // Ensures spacing on all devices
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  gameButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8, // Ensures uniform spacing
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 14, // Adjusted for better touch area
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  correctButton: {
+    backgroundColor: '#2ECC71',
+  },
+  skipButton: {
+    backgroundColor: '#E67E22',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#BDC3C7', // Light gray when disabled
+    opacity: 0.6,
+  },
+  buttonTextDisabled: {
+    color: '#7F8C8D', // Darker gray for disabled text
+  },
+  hidden: {
+    opacity: 0,
+  },
+  disabledButton: {
+    backgroundColor: '#D1D5DB',
+    borderColor: '#9CA3AF',
+  },
+  disabledButtonText: {
+    color: '#6B7280',
+  },
+  timeUpModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  timeUpModalContent: {
+    backgroundColor: '#E74C3C',
+    padding: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10,
+  },
+  timeUpText: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+  },
+  finalScoreText: {
+    fontSize: 24,
+    color: 'white',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  modalButton: {
+    backgroundColor: '#2ECC71',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 24,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  disqualifyButton: {
+    backgroundColor: '#E74C3C', // Red color for disqualification
+  },
+  disqualifiedModalContent: {
+    backgroundColor: '#E74C3C',
+  },
+  disqualifiedScore: {
+    color: '#E74C3C',
+    fontStyle: 'italic',
+  },
+  noSkipsLeft: {
+    color: '#E74C3C', // Red color to indicate no skips remaining
+  },
+  correctAnimationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 1000,
+  },
+  correctAnimationContent: {
+    backgroundColor: '#2ECC71',
+    padding: 20,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  correctAnimationText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  skipAnimationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 1000,
+  },
+  skipAnimationContent: {
+    backgroundColor: '#E67E22',
+    padding: 20,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  skipAnimationText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+});
